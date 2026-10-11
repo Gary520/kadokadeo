@@ -229,3 +229,6 @@ oursouinvader.Game
 --next
 -js ./resources/js/games/memopsy.js
 memopsy.Game
+--next
+-js ./resources/js/games/hammerfest.js
+hammerfest.Game
