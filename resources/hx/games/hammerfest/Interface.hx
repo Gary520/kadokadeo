@@ -1,0 +1,142 @@
+package hammerfest;
+
+// hammer/gui/GameInterface.mt: the bar at the bottom (letters C R I S T A L, lives, level, score)
+class Interface {
+	static inline var BASE_X = 92; // lives
+	static inline var BASE_WIDTH = 16;
+	static inline var MAX_LIVES = 5;
+	// level: the red arrow of the bar and the number, centered in the box of the bar (between its cracks at 234
+	// and 294); the score is shown by the site under the game
+	static inline var BOX_CENTER = 264;
+	static inline var GLOW = 3.5; // glow around the glyphs of the digits
+	static inline var ARROW_GAP = 1;
+	static inline var ARROW_X0 = 261.05; // the arrow is drawn at its place in the bar of the original
+	static inline var ARROW_W = 17.1;
+
+	var game:Game;
+	var mc:ASprite;
+	var letters:Array<Pic>;
+	var lives:Array<Pic>;
+	var more:Pic;
+	var levelMc:ASprite;
+	var arrow:Pic;
+	var levelBox:ASprite;
+
+	// the red arrow and the number: a little smaller than the bar of the original, centered in its box
+	static inline var LEVEL_SCALE = 85;
+	static inline var BAR_MID = -10.0; // middle of the height of the bar (its bottom at 0)
+
+	var shownLevel:Int;
+
+	public function new(g:Game, root:ASprite) {
+		game = g;
+		mc = new ASprite();
+		mc._y = Data.DOC_HEIGHT;
+		root.addChild(mc);
+		var bg = new Pic("barBg");
+		mc.addChild(bg);
+		letters = [];
+		for (i in 0...7) {
+			var l = new Pic("barLetters", i + 1);
+			l._visible = false;
+			mc.addChild(l);
+			letters.push(l);
+		}
+		lives = [];
+		levelBox = new ASprite();
+		levelBox._x = BOX_CENTER;
+		levelBox._y = BAR_MID;
+		levelBox._xscale = levelBox._yscale = LEVEL_SCALE;
+		mc.addChild(levelBox);
+		arrow = new Pic("barArrow");
+		levelBox.addChild(arrow);
+		levelMc = new ASprite();
+		levelBox.addChild(levelMc);
+		shownLevel = -1;
+	}
+
+	public function setScore(v:Int) {}
+
+	public function setLevel(id:Int) {
+		if (id == shownLevel)
+			return;
+		shownLevel = id;
+		var w = writeDigits(levelMc, Std.string(id), 0);
+		// (centered on the middle of the box: the arrow spans -19.5..0.5 in height, the digits -19..-0.5)
+		var left = -(ARROW_W + ARROW_GAP + w) / 2;
+		arrow._x = left - ARROW_X0;
+		arrow._y = 9.5;
+		levelMc._x = left + ARROW_W + ARROW_GAP - GLOW;
+		levelMc._y = 9.75;
+	}
+
+	public function setLives(v:Int) {
+		while (lives.length > 0 && (lives.length > v || lives.length > MAX_LIVES)) {
+			var l = lives.pop();
+			mc.removeChild(l);
+			l.destroy();
+		}
+		while (lives.length < v && lives.length < MAX_LIVES) {
+			var l = new Pic("life");
+			l.show(l.count()); // end of its appearing animation
+			l._x = BASE_X + lives.length * BASE_WIDTH;
+			l._y = -19;
+			mc.addChild(l);
+			lives.push(l);
+		}
+	}
+
+	public function getExtend(id:Int) {
+		var l = letters[id];
+		if (!l._visible) {
+			l._visible = true;
+			var fx = new Animation(game);
+			fx.attach(0, 0, "letterPop", Data.DP_INTERF);
+			// (in the pixels of the game, over the bar)
+			if (fx.mc.parent != null)
+				fx.mc.parent.removeChild(fx.mc);
+			game.ui.addChild(fx.mc);
+			var b = Art.BAR_LETTERS;
+			fx.mc._x = (b[id * 4] + b[id * 4 + 2]) * 0.5;
+			fx.mc._y = Data.DOC_HEIGHT - 3.2;
+			game.addAnim(fx);
+		}
+	}
+
+	public function clearExtends() {
+		for (l in letters)
+			l._visible = false;
+	}
+
+	// digits of the font of the game (Franklin Gothic Heavy, glow) from x
+	function writeDigits(holder:ASprite, txt:String, x:Float):Float {
+		while (holder.children.length > 0) {
+			var c = holder.getChildAt(0);
+			holder.removeChild(c);
+			c.destroy();
+		}
+		var adv = Art.DIGIT_SCORE;
+		var w = 0.0;
+		for (i in 0...txt.length) {
+			var ch = txt.charAt(i);
+			w += ch == " " ? 4 : adv[Std.parseInt(ch)];
+		}
+		var px = x;
+		for (i in 0...txt.length) {
+			var ch = txt.charAt(i);
+			if (ch == " ") {
+				px += 4;
+				continue;
+			}
+			var d = Std.parseInt(ch);
+			var p = new Pic("digitScore", d + 1);
+			p._x = px;
+			p._y = -0.5; // (glyphs centered in the bar, like the letters)
+			holder.addChild(p);
+			px += adv[d];
+		}
+		return w;
+	}
+
+	public function update() {}
+}
