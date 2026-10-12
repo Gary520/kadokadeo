@@ -68,6 +68,16 @@ class World {
 	var fieldsHolder:ASprite;
 	var oldFields:ASprite;
 	var fieldPics:Array<Pic> = [];
+	// devices of the level (levers, stone blocks: the scripts of the original), over its picture; the cases of the
+	// blocks are drawn by their pictures, not as tiles
+	var devicesHolder:ASprite;
+	var oldDevices:ASprite;
+	var leverPics:Array<Pic> = [];
+	var blockPics:Array<Pic> = [];
+	var endPics:Array<Pic> = [];
+	public var leverDone:Array<Bool> = [];
+	public var blockDone:Array<Bool> = [];
+	var endDone:Bool = false;
 
 	// view: the picture of the level (background + tiles, drawn once in a texture like the bitmap cache of the
 	// original), the stone columns on the sides, the picture of the previous level while scrolling
@@ -195,6 +205,7 @@ class World {
 		if (first) {
 			// (the game starts the first level itself)
 			drawView();
+			drawDevices();
 			setViewY(0);
 		} else if (fade) {
 			// jump (umbrellas): a black screen with the loading bar, then the new level at once
@@ -203,7 +214,13 @@ class World {
 				fieldsHolder.destroy({children: true});
 				fieldsHolder = null;
 			}
+			if (devicesHolder != null) {
+				devicesHolder.parent.removeChild(devicesHolder);
+				devicesHolder.destroy({children: true});
+				devicesHolder = null;
+			}
 			drawView();
+			drawDevices();
 			setViewY(0);
 			viewHolder.updateState();
 			black.visible = true;
@@ -228,9 +245,16 @@ class World {
 				oldFields = fieldsHolder;
 				fieldsHolder = null;
 			}
+			if (devicesHolder != null) {
+				// (its devices too)
+				fakeHolder.addChildAt(devicesHolder, 1);
+				oldDevices = devicesHolder;
+				devicesHolder = null;
+			}
 			fakeHolder._y = 0;
 			fakeHolder.updateState();
 			drawView();
+			drawDevices();
 			setViewY(Data.GAME_HEIGHT);
 			viewHolder.updateState();
 			sides.updateState();
@@ -463,8 +487,145 @@ class World {
 	function isWall(cx:Int, cy:Int):Bool {
 		if (cx < 0 || cx >= Data.LEVEL_WIDTH || cy < 0 || cy >= Data.LEVEL_HEIGHT)
 			return false;
+		return drawn(cx, cy) && (cx - 1 < 0 || !drawn(cx - 1, cy)) && (cx + 1 >= Data.LEVEL_WIDTH || !drawn(cx + 1, cy));
+	}
+
+	inline function drawn(x:Int, y:Int):Bool {
+		return current.map[x][y] > 0 && !hidden(x, y);
+	}
+
+	// a case drawn by the picture of a stone block, not as a tile
+	function hidden(cx:Int, cy:Int):Bool {
+		var c = current;
+		if (c.blocks != null)
+			for (i in 0...c.blocks.length) {
+				var b = c.blocks[i];
+				if (blockDone[i] != true && cx >= b.x && cx <= b.x + 1 && cy >= b.y && cy <= b.y + 1)
+					return true;
+			}
+		if (c.endBlocks != null && !endDone)
+			for (b in c.endBlocks)
+				if (cx >= b.x && cx <= b.x + 1 && cy >= b.y && cy <= b.y + 1)
+					return true;
+		return false;
+	}
+
+	// DEVICES (scripts of the original: $e_mc $levier / $block / $blockEnd, triggers $enter / $exp / $end)
+	function drawDevices() {
+		devicesHolder = new ASprite();
+		viewHolder.addChild(devicesHolder);
+		leverPics = [];
+		blockPics = [];
+		endPics = [];
+		var c = current;
+		leverDone = c.levers == null ? [] : [for (l in c.levers) false];
+		blockDone = c.blocks == null ? [] : [for (b in c.blocks) false];
+		endDone = false;
+		// (the pictures: a block from its left side at mid height, a lever standing on its ground)
+		if (c.blocks != null)
+			for (b in c.blocks)
+				blockPics.push(devicePic("block", 1, b.x * Data.CASE_WIDTH, b.y * Data.CASE_HEIGHT + Data.CASE_HEIGHT));
+		if (c.endBlocks != null)
+			for (b in c.endBlocks)
+				endPics.push(devicePic("blockEnd", 1, b.x * Data.CASE_WIDTH, b.y * Data.CASE_HEIGHT + Data.CASE_HEIGHT));
+		if (c.levers != null)
+			for (l in c.levers)
+				leverPics.push(devicePic("lever", 1, l.x * Data.CASE_WIDTH, (l.y + 1) * Data.CASE_HEIGHT));
+		devicesHolder.updateState();
+	}
+
+	function devicePic(name:String, f:Int, x:Float, y:Float):Pic {
+		var p = new Pic(name, f);
+		p._x = x;
+		p._y = y;
+		devicesHolder.addChild(p);
+		return p;
+	}
+
+	// Igor in the case of a lever: it is pulled (once), its cases change
+	public function checkLevers(p:Player) {
+		var c = current;
+		if (c.levers == null || p == null || p.fl_kill || fl_lock)
+			return;
+		for (i in 0...c.levers.length) {
+			var l = c.levers[i];
+			if (leverDone[i] || p.cx != l.x || p.cy != l.y)
+				continue;
+			leverDone[i] = true;
+			leverPics[i].show(2);
+			Snd.play("sound_kick", Snd.CHAN_FIELD);
+			var cells:Array<{x:Int, y:Int}> = [for (a in l.add) {x: a.x, y: a.y}].concat(l.rem).concat(l.spikes);
+			for (k in cells)
+				game.fxMan.inGameParticles(Data.PARTICLE_STONE, Entity.x_ctr(k.x), Entity.y_ctr(k.y) - Data.CASE_HEIGHT * 0.5, 2);
+			if (cells.length > 0)
+				game.fxMan.attachExplosion(Entity.x_ctr(cells[0].x), Entity.y_ctr(cells[0].y) - Data.CASE_HEIGHT * 0.5, Data.CASE_WIDTH * 1.5);
+			applyCases(l.add, l.rem);
+			for (s in l.spikes)
+				game.attachBad(Data.BAD_SPEAR, Entity.x_ctr(s.x) - Data.CASE_WIDTH * 0.5, Entity.y_ctr(s.y - 1));
+			if (l.spikes.length > 0)
+				game.shake(Data.SECOND * 0.3, 2);
+		}
+	}
+
+	// a bomb of Igor exploding (Game.onExplode, the script $exp of the original): the stone blocks it reaches break
+	public function onExplode(x:Float, y:Float, r:Float) {
+		var c = current;
+		if (c.blocks == null)
+			return;
+		for (i in 0...c.blocks.length) {
+			if (blockDone[i])
+				continue;
+			var b = c.blocks[i];
+			var hit = false;
+			for (k in 0...4) {
+				var dx = Entity.x_ctr(b.x + (k & 1)) - x;
+				var dy = Entity.y_ctr(b.y + (k >> 1)) - Data.CASE_HEIGHT * 0.5 - y;
+				if (dx * dx + dy * dy <= r * r)
+					hit = true;
+			}
+			if (hit)
+				breakBlock(i);
+		}
+	}
+
+	function breakBlock(i:Int) {
+		blockDone[i] = true;
+		var b = current.blocks[i];
+		dropBlock(blockPics[i], b);
+		Snd.play("sound_bomb_black", Snd.CHAN_FIELD);
+		game.shake(Data.SECOND * 0.3, 2);
+		applyCases([], [for (k in 0...4) {x: b.x + (k & 1), y: b.y + (k >> 1)}]);
+	}
+
+	// the picture of a block goes, its fall plays ($blockFall), stones fly
+	function dropBlock(p:Pic, b:{x:Int, y:Int}) {
+		if (p != null && p.parent != null)
+			p.parent.removeChild(p);
+		var x = b.x * Data.CASE_WIDTH;
+		var y = b.y * Data.CASE_HEIGHT + Data.CASE_HEIGHT;
+		game.fxMan.attachFx(x, y, "blockFall");
+		game.fxMan.inGameParticles(Data.PARTICLE_STONE, x + Data.CASE_WIDTH, y, 4);
+	}
+
+	// cases of the map changed by a device: grounds and walls again (Levels.get), the flags of the AI, the picture
+	function applyCases(add:Array<{x:Int, y:Int, v:Int}>, rem:Array<{x:Int, y:Int}>) {
 		var m = current.map;
-		return m[cx][cy] > 0 && (cx - 1 < 0 || m[cx - 1][cy] <= 0) && (cx + 1 >= Data.LEVEL_WIDTH || m[cx + 1][cy] <= 0);
+		for (r in rem)
+			if (inBound(r.x, r.y))
+				m[r.x][r.y] = 0;
+		for (a in add)
+			if (inBound(a.x, a.y))
+				m[a.x][a.y] = a.v > 0 ? Data.GROUND : a.v;
+		for (cx in 0...Data.LEVEL_WIDTH)
+			for (cy in 0...Data.LEVEL_HEIGHT)
+				if (m[cx][cy] > 0)
+					m[cx][cy] = (cy > 0 && m[cx][cy - 1] > 0) ? Data.WALL : Data.GROUND;
+		resetIA();
+		parseIA();
+		var old = viewTex;
+		drawView(specialBg == null, true);
+		if (old != null)
+			old.destroy(true);
 	}
 
 	// background + tiles of the level, drawn once in a texture (View.attach)
@@ -490,6 +651,8 @@ class World {
 			var startX = 0;
 			for (x in 0...Data.LEVEL_WIDTH + 1) {
 				var v = x < Data.LEVEL_WIDTH ? m[x][y] : 0;
+				if (v > 0 && hidden(x, y))
+					v = 0;
 				if (!tracing && v > 0) {
 					startX = x;
 					tracing = true;
@@ -537,6 +700,11 @@ class World {
 		var l = current.openAtEnd;
 		if (l == null || l.length == 0)
 			return;
+		if (current.endBlocks != null && !endDone) {
+			endDone = true;
+			for (i in 0...current.endBlocks.length)
+				dropBlock(endPics[i], current.endBlocks[i]);
+		}
 		var m = current.map;
 		for (p in l) {
 			if (p.x < 0 || p.x >= Data.LEVEL_WIDTH || p.y < 0 || p.y >= Data.LEVEL_HEIGHT)
@@ -835,7 +1003,7 @@ class World {
 			if (p.count() > 1)
 				p.show(p.cur % p.count() + 1);
 		if (loadCpt >= 0) {
-			loadCpt += 1;
+			loadCpt += Game.tmod;
 			// (shorter than the original: 12 cycles)
 			var ratio = loadCpt / 12;
 			showLoad(ratio);
@@ -848,7 +1016,7 @@ class World {
 			onViewReady();
 		}
 		if (fl_scrolling) {
-			scrollCpt += Data.SCROLL_SPEED;
+			scrollCpt += Data.SCROLL_SPEED * Game.tmod;
 			var s = Cs.qt(Math.sin(scrollCpt));
 			setViewY(Data.GAME_HEIGHT + s * (0 - Data.GAME_HEIGHT));
 			fakeHolder._y = -s * Data.GAME_HEIGHT;
@@ -868,6 +1036,12 @@ class World {
 						oldFields.parent.removeChild(oldFields);
 					oldFields.destroy({children: true});
 					oldFields = null;
+				}
+				if (oldDevices != null) {
+					if (oldDevices.parent != null)
+						oldDevices.parent.removeChild(oldDevices);
+					oldDevices.destroy({children: true});
+					oldDevices = null;
 				}
 				fl_scrolling = false;
 				onViewReady();

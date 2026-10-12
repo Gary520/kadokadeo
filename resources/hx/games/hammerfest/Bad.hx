@@ -314,7 +314,7 @@ class Bad extends Mover {
 		var ox = mc._x;
 		var oy = mc._y;
 		if (fl_softRecal)
-			softRecalFactor += 0.1 * speedFactor;
+			softRecalFactor += 0.1 * Game.tmod * speedFactor;
 		super.endUpdate();
 
 		// ice pieces behind a frozen bad sliding fast
@@ -340,14 +340,14 @@ class Bad extends Mover {
 
 		// frozen
 		if (freezeTimer > 0) {
-			freezeTimer -= 1;
+			freezeTimer -= Game.tmod;
 			if (freezeTimer <= 0)
 				melt();
 		}
 
 		// forced death (lost bad)
 		if (deathTimer > 0) {
-			deathTimer -= 1;
+			deathTimer -= Game.tmod;
 			if (deathTimer <= 0) {
 				game.fxMan.attachExplosion(x, y, 80);
 				y = 1000;
@@ -356,7 +356,7 @@ class Bad extends Mover {
 
 		// knocked
 		if (knockTimer > 0) {
-			knockTimer -= 1;
+			knockTimer -= Game.tmod;
 			if (knockTimer <= 0)
 				wakeUp();
 		}
@@ -596,7 +596,7 @@ class Walker extends Bad {
 	override public function update() {
 		fl_willFallDown = false;
 		if (recentParticles > 0)
-			recentParticles -= 1;
+			recentParticles -= Game.tmod;
 		super.update();
 	}
 }
@@ -896,7 +896,7 @@ class Shooter extends Jumper {
 
 	override public function update() {
 		if (shootCD > 0)
-			shootCD -= 1;
+			shootCD -= Game.tmod;
 		if (fl_shooter && shootCD <= 0) {
 			if (isReady() && Cs.rnd(1000) < chanceShoot)
 				startShoot();

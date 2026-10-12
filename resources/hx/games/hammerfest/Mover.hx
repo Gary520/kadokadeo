@@ -56,7 +56,7 @@ class Mover extends Physics {
 
 	override public function update() {
 		if (next != null) {
-			next.delay -= 1;
+			next.delay -= Game.tmod;
 			if (next.delay <= 0)
 				onNext();
 		}

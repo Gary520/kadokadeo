@@ -273,7 +273,7 @@ class Fraise extends Shooter {
 	override public function update() {
 		super.update();
 		if (catchCD > 0) {
-			catchCD -= 1;
+			catchCD -= Game.tmod;
 			if (catchCD <= 0)
 				catchCD = 0;
 		}
@@ -783,7 +783,7 @@ class FireBall extends Bad {
 
 	override public function update() {
 		if (fl_summon) {
-			summonTimer -= 1;
+			summonTimer -= Game.tmod;
 			if (summonTimer <= 0) {
 				fl_summon = false;
 				stopBlink();
@@ -798,7 +798,7 @@ class FireBall extends Bad {
 			return;
 		}
 		// anger over time
-		angerTimer += game.diffFactor;
+		angerTimer += Game.tmod * game.diffFactor;
 		if (angerTimer >= Data.AUTO_ANGER) {
 			angerTimer = 0;
 			angerMore();
@@ -811,12 +811,12 @@ class FireBall extends Bad {
 		if (tang - ang > 180)
 			ang += 360;
 		if (ang < tang) {
-			ang += angSpeed * speedFactor;
+			ang += angSpeed * speedFactor * Game.tmod;
 			if (ang > tang)
 				ang = tang;
 		}
 		if (ang > tang) {
-			ang -= angSpeed * speedFactor;
+			ang -= angSpeed * speedFactor * Game.tmod;
 			if (ang < tang)
 				ang = tang;
 		}

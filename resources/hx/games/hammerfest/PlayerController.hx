@@ -100,7 +100,7 @@ class PlayerController {
 
 		if (player.specialMan.actives[73]) { // tree leaf
 			if (player.fl_stable && player.dx != 0) {
-				walkTimer -= 1;
+				walkTimer -= Game.tmod;
 				if (walkTimer <= 0) {
 					walkTimer = Data.SECOND;
 					player.getScore(player, 10);
@@ -135,7 +135,7 @@ class PlayerController {
 			var dist:Float = Data.KICK_DISTANCE;
 			if (!player.fl_stable)
 				dist = Data.AIR_KICK_DISTANCE;
-			var bombList = player.bombsToKick(dist);
+			var bombList:Array<Bomb> = cast game.getClose(Data.BOMB, player.x, player.y, dist, false);
 			if (bombList.length == 0) {
 				// drop a bomb
 				if (player.currentWeapon > 0 && player.countBombs() < player.maxBombs) {
@@ -158,7 +158,7 @@ class PlayerController {
 			var dist:Float = Data.KICK_DISTANCE;
 			if (!player.fl_stable)
 				dist = Data.AIR_KICK_DISTANCE;
-			var bombList = player.bombsToKick(dist);
+			var bombList:Array<Bomb> = cast game.getClose(Data.BOMB, player.x, player.y, dist, false);
 			if (bombList.length > 0)
 				player.upKickBomb(bombList);
 		}

@@ -620,7 +620,7 @@ class Saw extends WallWalker {
 		if (fl_stun)
 			rotSpeed *= 0.9;
 		else
-			rotSpeed = Math.min(ROTATION_SPEED, rotSpeed + 1);
+			rotSpeed = Math.min(ROTATION_SPEED, rotSpeed + Game.tmod);
 		bladeHolder._rotation += rotSpeed;
 	}
 
@@ -630,7 +630,7 @@ class Saw extends WallWalker {
 			dy = 0;
 			if (Cs.vrnd(10) == 0)
 				game.fxMan.inGameParticles(Data.PARTICLE_SPARK, x, y, 1);
-			stunTimer -= 1;
+			stunTimer -= Game.tmod;
 			if (stunTimer <= 0) {
 				fl_stun = false;
 				onWakeUp();
@@ -731,7 +731,7 @@ class Crawler extends WallWalker {
 				fl_inSight = true;
 		}
 		if (fl_inSight) {
-			attackCD -= 4;
+			attackCD -= Game.tmod * 4;
 			factor = 8;
 		}
 		return isReady() && isHealthy() && attackCD <= 0 && Cs.rnd(1000) < CHANCE_ATTACK * factor;
@@ -790,12 +790,12 @@ class Crawler extends WallWalker {
 		if (isHealthy()) {
 			xscale += 10 * Math.sin(blobCpt);
 			yscale += 10 * Math.cos(blobCpt);
-			blobCpt += 0.1;
+			blobCpt += Game.tmod * 0.1;
 		}
 		subMc._xscale += SCALE_RECAL * (xscale - subMc._xscale);
 		subMc._yscale += SCALE_RECAL * (yscale - subMc._yscale);
 		if (colorAlpha > 0) {
-			colorAlpha -= 3;
+			colorAlpha -= Game.tmod * 3;
 			if (colorAlpha <= 0)
 				resetColor();
 			else
@@ -810,13 +810,13 @@ class Crawler extends WallWalker {
 		}
 		super.update();
 		if (attackCD > 0)
-			attackCD -= 1;
+			attackCD -= Game.tmod;
 		if (decideAttack()) {
 			if (world.getCase(cx + cp.x, cy + cp.y) > 0)
 				prepareAttack();
 		}
 		if (fl_attack && attackTimer > 0) {
-			attackTimer -= 1;
+			attackTimer -= Game.tmod;
 			if (attackTimer <= 0)
 				attack();
 		}

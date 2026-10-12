@@ -5,7 +5,8 @@ package hammerfest;
 // highest: 50 for the player, the bombs, the items and the fields, 40 for the bads and the interface, music 32.5).
 // The files are loaded at the start of the first game, a sound asked before its file is there is not played. Nothing is
 // played while a replay is sought or caught up (many cycles at once), nor sped up more than twice. Key M: music on /
-// off (the original), kept in the browser; not a key of the game (not in the replays).
+// off (the original), key B: the sounds on / off, each kept in the browser and shown at the top of the field; not keys
+// of the game (not in the replays).
 class Snd {
 	public static inline var CHAN_PLAYER = 0;
 	public static inline var CHAN_BOMB = 1;
@@ -29,6 +30,7 @@ class Snd {
 
 	static var ctx:Dynamic = null;
 	static var master:Dynamic;
+	static var sfxGain:Dynamic;
 	static var chans:Array<Dynamic>;
 	static var musicGain:Dynamic;
 	static var buffers:Map<String, Dynamic> = new Map();
@@ -40,6 +42,7 @@ class Snd {
 	static var cycle:Int = 0;
 
 	public static var musicOn(default, null):Bool = true;
+	public static var soundsOn(default, null):Bool = true;
 
 	// the audio of the page and the files, once
 	public static function init() {
@@ -60,19 +63,23 @@ class Snd {
 		}
 		master = ctx.createGain();
 		master.connect(ctx.destination);
+		sfxGain = ctx.createGain();
+		sfxGain.connect(master);
 		chans = [];
 		for (v in CHAN_VOLUMES) {
 			var g = ctx.createGain();
 			g.gain.value = v;
-			g.connect(master);
+			g.connect(sfxGain);
 			chans.push(g);
 		}
 		musicGain = ctx.createGain();
 		musicGain.connect(master);
 		try {
 			musicOn = js.Browser.getLocalStorage().getItem("hammerfest.music") != "0";
+			soundsOn = js.Browser.getLocalStorage().getItem("hammerfest.sounds") != "0";
 		} catch (e:Dynamic) {}
 		setMusicGain();
+		setSoundsGain();
 		for (s in SOUNDS)
 			load(s);
 		for (m in MUSICS)
@@ -87,8 +94,15 @@ class Snd {
 		w.addEventListener("pointerdown", resume);
 		w.addEventListener("touchstart", resume);
 		w.addEventListener("keydown", function(e:Dynamic) {
-			if (e.keyCode == 77 && !e.repeat && Game.me != null && !isTyping(e))
+			if (e.repeat || Game.me == null || isTyping(e))
+				return;
+			if (e.keyCode == 77) {
 				toggleMusic();
+				showOption(musicOn ? 5 : 6);
+			} else if (e.keyCode == 66) {
+				toggleSounds();
+				showOption(soundsOn ? 7 : 8);
+			}
 		});
 		// (a replay paused: the music too)
 		w.setInterval(function() {
@@ -148,7 +162,7 @@ class Snd {
 	}
 
 	public static function play(name:String, chan:Int) {
-		if (ctx == null || quiet())
+		if (ctx == null || !soundsOn || quiet())
 			return;
 		var b = buffers.get(name);
 		if (b == null)
@@ -197,6 +211,26 @@ class Snd {
 	static function setMusicGain() {
 		if (musicGain != null)
 			musicGain.gain.value = musicOn ? MUSIC_VOLUME * musicFactor : 0;
+	}
+
+	public static function toggleSounds() {
+		soundsOn = !soundsOn;
+		try {
+			js.Browser.getLocalStorage().setItem("hammerfest.sounds", soundsOn ? "1" : "0");
+		} catch (e:Dynamic) {}
+		setSoundsGain();
+	}
+
+	static function setSoundsGain() {
+		if (sfxGain != null)
+			sfxGain.gain.value = soundsOn ? 1 : 0;
+	}
+
+	// (the message at the top of the field, like the options of the game: "Musique : non"...)
+	static function showOption(frame:Int) {
+		var g = Game.me;
+		if (g != null && g.fxMan != null)
+			g.fxMan.attachOptionMsg(frame);
 	}
 
 	static function startMusic() {

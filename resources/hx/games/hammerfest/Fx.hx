@@ -13,6 +13,8 @@ class Animation {
 	public var lifeTimer:Float;
 	public var blinkTimer:Float;
 	public var loopFrame:Int;
+	// a clip of the SWF playing by itself (one frame a picture, 40 a second), not an effect of the game (tmod)
+	public var fl_swf:Bool = false;
 
 	public function new(g:Game) {
 		game = g;
@@ -57,20 +59,20 @@ class Animation {
 		if (fl_kill)
 			return;
 		if (fl_loopDone) {
-			lifeTimer -= 1;
+			lifeTimer -= Game.tmod;
 			if (lifeTimer <= 0) {
 				destroy();
 				return;
 			}
 		}
 		if (fl_blink) {
-			blinkTimer -= 1;
+			blinkTimer -= Game.tmod;
 			if (blinkTimer <= 0) {
 				mc._alpha = (mc._alpha == 100) ? 30 : 100;
 				blinkTimer = Data.BLINK_DURATION_FAST;
 			}
 		}
-		frame += 1;
+		frame += fl_swf ? 1 : Game.tmod;
 		while (frame >= 1) {
 			if (pic.cur < pic.count())
 				pic.show(pic.cur + 1);
@@ -184,7 +186,7 @@ class Particle extends Mover {
 
 	override public function update() {
 		if (Math.abs(dx) <= 0.5) {
-			lifeTimer -= 1;
+			lifeTimer -= Game.tmod;
 			if (lifeTimer <= 0)
 				onLifeTimer();
 		}
@@ -230,18 +232,19 @@ class FxManager {
 		detachBg();
 	}
 
-	// the word CRISTAL done (extendSequence in the middle of the screen; its dark band the width of the field): until
-	// the next level
+	// the word CRISTAL done (extendSequence in the middle of the screen; its dark band the width of the field): the
+	// whole sequence of the original (the letters, their balls gathered, turning, then thrown away; the band closing),
+	// gone at its end (its clip removed itself)
 	public function attachExtend() {
 		var band = attachFx(Data.GAME_WIDTH / 2, Data.GAME_HEIGHT / 2, "extendBand");
 		if (band != null) {
 			// (a strip of 2 Flash pixels)
 			band.mc._xscale = (Data.GAME_WIDTH + 40) / 2 * 100;
-			band.lifeTimer = 9999;
+			band.lifeTimer = 1;
 		}
 		var a = attachFx(Data.GAME_WIDTH / 2, Data.GAME_HEIGHT / 2, "extendFx");
 		if (a != null)
-			a.lifeTimer = 9999;
+			a.lifeTimer = 1;
 	}
 
 	public function attachFx(x:Float, y:Float, link:String, ?start:Int = 1):Animation {
@@ -260,12 +263,13 @@ class FxManager {
 		var mc = new ASprite();
 		var inner = new ASprite();
 		mc.addChild(inner);
+		// (the thousands grouped by a dot like the original, "2.000": the 11th picture of the digits)
 		var txt = Data.formatNumber(value);
 		var adv = Art.DIGIT_POP;
 		var w = 0.0;
 		for (i in 0...txt.length) {
 			var c = txt.charAt(i);
-			w += c == "." ? 3 : adv[Std.parseInt(c)];
+			w += adv[c == "." ? 10 : Std.parseInt(c)];
 		}
 		// (popScore: its text field stretched 1.53 times in height, its baseline 6.25 under the label)
 		var field = new ASprite();
@@ -275,11 +279,7 @@ class FxManager {
 		var px = -w / 2;
 		for (i in 0...txt.length) {
 			var c = txt.charAt(i);
-			if (c == ".") {
-				px += 3;
-				continue;
-			}
-			var d = Std.parseInt(c);
+			var d = c == "." ? 10 : Std.parseInt(c);
 			var p = new Pic("digitPop", d + 1);
 			p._x = px;
 			p._y = 0;
@@ -548,7 +548,7 @@ class FxManager {
 				fl_bg = true;
 				game.world.attachSpecialBg(b.id);
 			}
-			b.timer -= 1;
+			b.timer -= Game.tmod;
 			if (b.timer <= 0) {
 				bgList.splice(0, 1);
 				detachBg();
@@ -557,7 +557,7 @@ class FxManager {
 		// delayed effects
 		var i = 0;
 		while (i < stack.length) {
-			stack[i].t -= 1;
+			stack[i].t -= Game.tmod;
 			if (stack[i].t <= 0) {
 				attachFx(stack[i].x, stack[i].y, stack[i].link);
 				stack.splice(i, 1);
@@ -599,7 +599,7 @@ class FxManager {
 		while (i < alerts.length) {
 			var a = alerts[i];
 			if (a.f == 10 && a.timer > 0) {
-				a.timer -= 1;
+				a.timer -= Game.tmod;
 				a.mc._x = Game.docX(Data.GAME_WIDTH / 2 + (a.timer % 2 < 1 ? ALERT_X[8] : ALERT_X[9]));
 			} else {
 				a.f++;

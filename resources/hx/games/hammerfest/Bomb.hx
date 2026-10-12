@@ -37,18 +37,6 @@ class Bomb extends Mover {
 		setLifeTimer(duration);
 		updateCoords();
 		playAnim(Data.ANIM_BOMB_DROP);
-		lastX = this.x;
-		lastY = this.y;
-	}
-
-	// the place at the start of the last cycle (Player.bombsToKick: the original read the keys 40 times a second)
-	public var lastX:Float;
-	public var lastY:Float;
-
-	override public function update() {
-		lastX = x;
-		lastY = y;
-		super.update();
 	}
 
 	override public function needsPatch():Bool {
@@ -370,7 +358,7 @@ class Mine extends BadBomb {
 			fl_plant = true;
 		// hidden after it is planted
 		if (fl_plant && !fl_trigger && alpha > 0) {
-			alpha -= HIDE_SPEED;
+			alpha -= Game.tmod * HIDE_SPEED;
 			if (alpha <= 0)
 				hide();
 		}
