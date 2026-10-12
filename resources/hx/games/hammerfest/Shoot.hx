@@ -485,11 +485,12 @@ class FramBall extends Shoot {
 		// towards the place where the raspberry is put back together
 		var tang = Cs.qt(Math.atan2(owner.ty - y, owner.tx - x));
 		if (adjustAngRad(tang - ang) > 0)
-			ang += turnSpeed;
+			ang += turnSpeed * Game.tmod;
 		if (adjustAngRad(tang - ang) < 0)
-			ang -= turnSpeed;
-		dx = Cs.qt(Math.cos(ang)) * shootSpeed;
-		dy = Cs.qt(Math.sin(ang)) * shootSpeed;
+			ang -= turnSpeed * Game.tmod;
+		// (tmod twice in the original: its speed and its move, the pieces as slow as in the original)
+		dx = Cs.qt(Math.cos(ang)) * shootSpeed * Game.tmod;
+		dy = Cs.qt(Math.sin(ang)) * shootSpeed * Game.tmod;
 		super.update();
 	}
 }

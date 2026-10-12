@@ -25,6 +25,12 @@ class Interface {
 	// the red arrow and the number: a little smaller than the bar of the original, centered in its box
 	static inline var LEVEL_SCALE = 85;
 	static inline var BAR_MID = -10.0; // middle of the height of the bar (its bottom at 0)
+	// the arrow smaller than the digits of the original (18 high, the digits 13: the number looked too high by it), its
+	// middle at the middle of the digits
+	static inline var ARROW_SCALE = 0.95;
+	static inline var DIGIT_MID = 0.75; // middle of the glyphs of the digits (their pictures at 9.75: -5.75..7.25)
+	static inline var ARROW_TOP = 18.5; // the ink of the arrow over its pivot: 18.5..0.5
+	static inline var ARROW_BOTTOM = 0.5;
 
 	var shownLevel:Int;
 
@@ -49,6 +55,7 @@ class Interface {
 		levelBox._xscale = levelBox._yscale = LEVEL_SCALE;
 		mc.addChild(levelBox);
 		arrow = new Pic("barArrow");
+		arrow._xscale = arrow._yscale = ARROW_SCALE * 100;
 		levelBox.addChild(arrow);
 		levelMc = new ASprite();
 		levelBox.addChild(levelMc);
@@ -62,11 +69,12 @@ class Interface {
 			return;
 		shownLevel = id;
 		var w = writeDigits(levelMc, Std.string(id), 0);
-		// (centered on the middle of the box: the arrow spans -19.5..0.5 in height, the digits -19..-0.5)
-		var left = -(ARROW_W + ARROW_GAP + w) / 2;
-		arrow._x = left - ARROW_X0;
-		arrow._y = 9.5;
-		levelMc._x = left + ARROW_W + ARROW_GAP - GLOW;
+		// (the arrow and the number centered on the middle of the box)
+		var aw = ARROW_W * ARROW_SCALE;
+		var left = -(aw + ARROW_GAP + w) / 2;
+		arrow._x = left - ARROW_X0 * ARROW_SCALE;
+		arrow._y = DIGIT_MID + (ARROW_TOP + ARROW_BOTTOM) / 2 * ARROW_SCALE;
+		levelMc._x = left + aw + ARROW_GAP - GLOW;
 		levelMc._y = 9.75;
 	}
 
@@ -90,15 +98,18 @@ class Interface {
 		var l = letters[id];
 		if (!l._visible) {
 			l._visible = true;
+			// (GameInterface.getExtend: the pop of the letter in the bar itself, over the letter, at its bottom middle:
+			// its flash on the letter, its puff going up over the field; a clip of the SWF playing its frames, one a
+			// picture)
 			var fx = new Animation(game);
 			fx.attach(0, 0, "letterPop", Data.DP_INTERF);
-			// (in the pixels of the game, over the bar)
 			if (fx.mc.parent != null)
 				fx.mc.parent.removeChild(fx.mc);
-			game.ui.addChild(fx.mc);
+			mc.addChild(fx.mc);
 			var b = Art.BAR_LETTERS;
 			fx.mc._x = (b[id * 4] + b[id * 4 + 2]) * 0.5;
-			fx.mc._y = Data.DOC_HEIGHT - 3.2;
+			fx.mc._y = -3.2;
+			fx.fl_swf = true;
 			game.addAnim(fx);
 		}
 	}

@@ -463,7 +463,6 @@ class Player extends Physics {
 			// an up kick at once counted as a kick in the air: no second kick of it in the air)
 			b.moveTo(b.x, y + 1);
 			b.fl_stable = true;
-			b.lastY = b.y;
 		}
 		game.statsMan.inc(Data.STAT_BOMB, 1);
 		b.setOwner(this);
@@ -471,23 +470,6 @@ class Player extends Physics {
 		if (!fl_stable)
 			kickBomb([b], 1.0);
 		return b;
-	}
-
-	// the bombs a press of the bomb key or of down takes: within dist of Igor's feet (Game.getClose in the original),
-	// now or 0.8 of a cycle earlier. The original read the keys 40 times a second, a cycle (1 / 32 s) is 0.8 of its
-	// frames: a bomb kicked away was still taken one frame later there (a press 50 to 100 ms after a side kick sends
-	// it up, 62 to 94 ms here without this)
-	public function bombsToKick(dist:Float):Array<Bomb> {
-		var out:Array<Bomb> = [];
-		var r2 = dist * dist;
-		for (e in game.getList(Data.BOMB)) {
-			var b:Bomb = cast e;
-			var bx = b.x + 0.8 * (b.lastX - b.x);
-			var by = b.y + 0.8 * (b.lastY - b.y);
-			if ((b.x - x) * (b.x - x) + (b.y - y) * (b.y - y) <= r2 || (bx - x) * (bx - x) + (by - y) * (by - y) <= r2)
-				out.push(b);
-		}
-		return out;
 	}
 
 	public function airJump() {
@@ -747,14 +729,14 @@ class Player extends Physics {
 
 		// cooldown of the shots
 		if (coolDown > 0) {
-			coolDown -= 1;
+			coolDown -= Game.tmod;
 			if (coolDown <= 0)
 				coolDown = 0;
 		}
 
 		// knocked
 		if (fl_knock) {
-			knockTimer -= 1;
+			knockTimer -= Game.tmod;
 			if (knockTimer <= 0) {
 				onWakeUp();
 			} else {
@@ -771,7 +753,7 @@ class Player extends Physics {
 				fl_lockControls = false;
 		}
 		if (lockTimer > 0) {
-			lockTimer -= 1;
+			lockTimer -= Game.tmod;
 			if (lockTimer <= 0)
 				fl_lockControls = false;
 			else
@@ -780,12 +762,12 @@ class Player extends Physics {
 
 		// shield
 		if (fl_shield) {
-			shieldTimer -= 1;
+			shieldTimer -= Game.tmod;
 			if (shieldTimer <= 0)
 				unshield();
 		}
 		if (entryGuard > 0)
-			entryGuard -= 1;
+			entryGuard -= Game.tmod;
 
 		super.update();
 		updateCoords();
@@ -806,7 +788,7 @@ class Player extends Physics {
 			if (animId == Data.ANIM_PLAYER_STOP.id && isBombWeapon(currentWeapon)) {
 				if (waitTimer <= 0)
 					waitTimer = Data.WAIT_TIMER;
-				waitTimer -= 1;
+				waitTimer -= Game.tmod;
 				if (waitTimer <= 0) {
 					// (the second waiting animation of the original is not in the mini version: the first one instead)
 					Cs.rnd(20);
@@ -822,7 +804,7 @@ class Player extends Physics {
 					if (world.getCase(px, py) <= 0 && world.getCase(cx + dir, cy) == 0) {
 						if (edgeTimer <= 0)
 							edgeTimer = Data.EDGE_TIMER;
-						edgeTimer -= 1;
+						edgeTimer -= Game.tmod;
 						if (edgeTimer <= 0)
 							playAnim(Data.ANIM_PLAYER_EDGE);
 					}

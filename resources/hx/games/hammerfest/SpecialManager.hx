@@ -135,7 +135,8 @@ class SpecialManager {
 			case 18: // dandelion: slow fall
 				permanent(id);
 				player.fallFactor = 0.55;
-			case 19: // sunflower: all the bads die
+			case 19: // sunflower: all the bads die (in a cloud of a fight)
+				Item.Smoke.attach(game);
 				game.fxMan.attachBg(Data.BG_ORANGE, Data.SECOND * 3);
 				for (b in game.getBadClearList())
 					b.forceKill(null);
@@ -321,7 +322,7 @@ class SpecialManager {
 		var n = 0;
 		while (n < recurring.length) {
 			var e = recurring[n];
-			e.timer -= 1;
+			e.timer -= Game.tmod;
 			if (e.timer <= 0) {
 				e.func();
 				if (e.fl_repeat) {

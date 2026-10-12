@@ -173,7 +173,7 @@ class Animator extends Trigger {
 			if (!fl_blinking && lifeTimer > 0)
 				blinkLife();
 			if (fl_blinking) {
-				blinkTimer -= 1;
+				blinkTimer -= Game.tmod;
 				if (blinkTimer <= 0) {
 					if (fl_blinked) {
 						if (fl_alphaBlink)
@@ -203,7 +203,7 @@ class Animator extends Trigger {
 		// the sub clip
 		if (frame >= 0) {
 			var fl_break = false;
-			frame += animFactor;
+			frame += animFactor * Game.tmod;
 			while (!fl_break && frame >= 1) {
 				if (subFrame == subCount) {
 					// (a frame script of the original sends the sub back to one of its pictures: fall, jump...)

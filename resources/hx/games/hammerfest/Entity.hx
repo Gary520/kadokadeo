@@ -338,12 +338,12 @@ class Entity {
 	// UPDATES
 	public function update() {
 		if (lifeTimer > 0) {
-			lifeTimer -= 1;
+			lifeTimer -= Game.tmod;
 			if (lifeTimer <= 0)
 				onLifeTimer();
 		}
 		if (stickTimer > 0) {
-			stickTimer -= 1;
+			stickTimer -= Game.tmod;
 			if (stickTimer <= 0)
 				unstick();
 		}
@@ -358,7 +358,7 @@ class Entity {
 			var ty = y + _yOffset;
 			mc._x = mc._x + (tx - mc._x) * softRecalFactor;
 			mc._y = mc._y + (ty - mc._y) * softRecalFactor;
-			softRecalFactor += 0.02;
+			softRecalFactor += 0.02 * Game.tmod;
 			if (softRecalFactor >= 1 || (Math.abs(tx - mc._x) <= 1.5 && Math.abs(ty - mc._y) <= 1.5))
 				fl_softRecal = false;
 		}
@@ -382,7 +382,7 @@ class Entity {
 				sticker._y = y + stickerY;
 			}
 			if (fl_stickRot)
-				sticker._rotation += 8;
+				sticker._rotation += 8 * Game.tmod;
 			if (fl_stickBound) {
 				sticker._x = Math.max(sticker._x, 10);
 				sticker._x = Math.min(sticker._x, Data.GAME_WIDTH - 10);

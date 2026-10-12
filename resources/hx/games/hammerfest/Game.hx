@@ -172,7 +172,7 @@ class Game implements kado.GameInterface {
 		Snd.playMusic(0);
 		// (the options of the browser, again: a replay may have changed them)
 		detail = loadDetail();
-		intuition = loadOpt("hammerfest.intuition");
+		intuition = loadIntuition();
 		frameCount = 0;
 		levelsDone = 0;
 		kills = 0;
@@ -199,10 +199,11 @@ class Game implements kado.GameInterface {
 		unregList = [];
 		uniq = 0;
 		cycle = 0;
-		xFriction = Data.FRICTION_X;
-		yFriction = Data.FRICTION_Y;
-		gFriction = Data.FRICTION_GROUND;
-		sFriction = Data.FRICTION_SLIDE;
+		// (Mode.updateConstants, GameMode.updateGroundFrictions: the frictions of a picture)
+		xFriction = Math.pow(Data.FRICTION_X, TMOD);
+		yFriction = Math.pow(Data.FRICTION_Y, TMOD);
+		gFriction = Math.pow(Data.FRICTION_GROUND, TMOD);
+		sFriction = Math.pow(Data.FRICTION_SLIDE, TMOD);
 		speedFactor = 1.0;
 		diffFactor = 1.0;
 		fl_lock = true;
@@ -240,12 +241,10 @@ class Game implements kado.GameInterface {
 		var lv = new js.html.URLSearchParams(js.Browser.location.search).get("lvl");
 		if (lv != null)
 			first = Std.parseInt(lv);
-		// ...&src=N: the first level remade from the hard level N of HardData
-		var src = new js.html.URLSearchParams(js.Browser.location.search).get("src");
-		if (src != null)
-			LevelGen.forceSrc = Std.parseInt(src);
-		// ...&kind=<name>: every level of that kind (LevelGen.KINDS)
+		// ...&kind=<name>: every level built that way (LevelCompose.SYSTEMS: trunks, decks, walls, rocks, slopes)
 		LevelGen.forceKind = new js.html.URLSearchParams(js.Browser.location.search).get("kind");
+		// ...&feat=<gate|spikes|pit|vault|disarm|teleport|saws|nest>[,...]: every level with these features (LevelFeatures)
+		LevelFeatures.force = new js.html.URLSearchParams(js.Browser.location.search).get("feat");
 		#end
 		world.goto(first);
 		#if debug
@@ -388,6 +387,7 @@ class Game implements kado.GameInterface {
 			// Adventure.attachBad: the order of the bads (killed in it: big crystal at the end)
 			perfectOrder.push(bad.uniqId);
 			perfectCount++;
+			orderNum.set(bad.uniqId, perfectCount);
 		}
 		return bad;
 	}
@@ -435,40 +435,55 @@ class Game implements kado.GameInterface {
 	// browser (only the pictures change: the game and its replay stay the same)
 	public static var detail:Bool = loadDetail();
 
-	// INTUITION (a mode of the fans): a white outline on the bad to kill first for the order of the bads (the big
-	// crystal), 3.5 s, then on the next one when it is dead; nothing more once the order is lost. Key I (kept in the
-	// browser), only pictures
-	public static var intuition:Bool = loadOpt("hammerfest.intuition");
+	// INTUITION (a mode of the fans): the order of the bads (killed in it: the big crystal at the end). Key I in turn:
+	// a white outline on the bad to kill first, 3.5 s, then on the next one when it is dead (1); under each bad of the
+	// order its number in it (2: 1 the first, the numbers kept as the bads die); nothing (0). Nothing more once the
+	// order is lost. Kept in the browser, only pictures
+	public static var intuition:Int = loadIntuition();
 	var intuitionKey:Bool = false;
 	var orderLost:Bool = false;
 	var hintBad:Bad = null;
 	var hintTimer:Float = 0;
+	var orderNum:Map<Int, Int> = new Map();
+	var orderMarks:Array<{bad:Bad, mc:ASprite, n:Int, w:Float}> = [];
 
-	static function loadOpt(k:String):Bool {
+	// (the old option: "1" the outline, "0" nothing)
+	static function loadIntuition():Int {
 		try {
-			return js.Browser.getLocalStorage().getItem(k) != "0";
+			var v = js.Browser.getLocalStorage().getItem("hammerfest.intuition");
+			return v == "0" ? 0 : (v == "2" ? 2 : 1);
 		} catch (e:Dynamic) {
-			return true;
+			return 1;
 		}
 	}
 
 	function toggleIntuition() {
-		intuition = !intuition;
+		// (the outline, the numbers, nothing)
+		intuition = (intuition + 1) % 3;
 		if (!isReplay)
 			try {
-				js.Browser.getLocalStorage().setItem("hammerfest.intuition", intuition ? "1" : "0");
+				js.Browser.getLocalStorage().setItem("hammerfest.intuition", Std.string(intuition));
 			} catch (e:Dynamic) {}
-		fxMan.attachOptionMsg(intuition ? 3 : 4);
-		if (intuition)
-			showOrderHint();
-		else
-			clearOrderHint();
+		fxMan.attachOptionMsg(intuition == 1 ? 3 : (intuition == 2 ? 9 : 4));
+		showOrderHint();
 	}
 
 	function showOrderHint() {
 		clearOrderHint();
-		if (!intuition || orderLost || perfectOrder.length == 0 || perfectCount < 2)
+		if (intuition == 0 || orderLost || perfectOrder.length == 0 || perfectCount < 2)
 			return;
+		if (intuition == 2) {
+			for (e in getList(Data.BAD_CLEAR))
+				if (!e.fl_kill && orderNum.exists(e.uniqId) && perfectOrder.indexOf(e.uniqId) >= 0)
+					orderMarks.push({
+						bad: cast e,
+						mc: orderMark(orderNum.get(e.uniqId)),
+						n: orderNum.get(e.uniqId),
+						w: orderMarkWidth(orderNum.get(e.uniqId))
+					});
+			updateOrderMarks();
+			return;
+		}
 		for (e in getList(Data.BAD_CLEAR))
 			if (e.uniqId == perfectOrder[0] && !e.fl_kill) {
 				hintBad = cast e;
@@ -495,12 +510,87 @@ class Game implements kado.GameInterface {
 			hintBad.pic.filters = null;
 		hintBad = null;
 		hintTimer = 0;
+		for (m in orderMarks)
+			removeOrderMark(m.mc);
+		orderMarks = [];
 	}
+
+	// the number of a bad in the order: white digits outlined in black, under its feet (on its ground), its middle under
+	// the middle of the bad (each digit centred on its picture, its pivot at its bottom middle)
+	function orderMark(n:Int):ASprite {
+		var mc = new ASprite();
+		var txt = Std.string(n);
+		var adv = Art.DIGIT_ORDER;
+		var w = orderMarkWidth(n);
+		var px = -w / 2;
+		for (i in 0...txt.length) {
+			var d = Std.parseInt(txt.charAt(i));
+			var p = new Pic("digitOrder", d + 1);
+			p._x = px + adv[d] / 2;
+			p._y = 0;
+			mc.addChild(p);
+			px += adv[d];
+		}
+		dm.add(mc, Data.DP_FX);
+		return mc;
+	}
+
+	static function orderMarkWidth(n:Int):Float {
+		var txt = Std.string(n);
+		var w = 0.0;
+		for (i in 0...txt.length)
+			w += Art.DIGIT_ORDER[Std.parseInt(txt.charAt(i))];
+		return w;
+	}
+
+	function removeOrderMark(mc:ASprite) {
+		if (mc.parent != null)
+			mc.parent.removeChild(mc);
+		mc.destroy({children: true});
+	}
+
+	// (after each picture: the numbers follow their bads, gone with them)
+	function updateOrderMarks() {
+		var i = 0;
+		while (i < orderMarks.length) {
+			var m = orderMarks[i];
+			if (m.bad.fl_kill || m.bad.fl_destroy) {
+				removeOrderMark(m.mc);
+				orderMarks.splice(i, 1);
+				continue;
+			}
+			m.mc._x = m.bad.x;
+			m.mc._y = m.bad.y + ORDER_MARK_Y;
+			i++;
+		}
+		// (two bads at the same place: their numbers side by side with a gap, not read as one number; the smaller one on
+		// the left when they are at the very same place)
+		for (k in 0...2)
+			for (a in 0...orderMarks.length)
+				for (b in a + 1...orderMarks.length) {
+					var ma = orderMarks[a];
+					var mb = orderMarks[b];
+					if (Math.abs(ma.mc._y - mb.mc._y) >= ORDER_MARK_H)
+						continue;
+					var sep = (ma.w + mb.w) / 2 + ORDER_MARK_GAP;
+					var dx = mb.mc._x - ma.mc._x;
+					if (Math.abs(dx) >= sep - 0.01)
+						continue;
+					var mid = (ma.mc._x + mb.mc._x) / 2;
+					var side = (dx > 0 || (dx == 0 && ma.n < mb.n)) ? 1 : -1;
+					ma.mc._x = mid - side * sep / 2;
+					mb.mc._x = mid + side * sep / 2;
+				}
+	}
+
+	static inline var ORDER_MARK_Y = 16;
+	static inline var ORDER_MARK_H = 14; // height of the digits
+	static inline var ORDER_MARK_GAP = 7; // between the numbers of two bads at the same place
 
 	function updateOrderHint() {
 		if (hintBad == null)
 			return;
-		hintTimer -= 1;
+		hintTimer -= tmod;
 		if (hintTimer <= 0 || hintBad.fl_kill || hintBad.fl_destroy)
 			clearOrderHint();
 	}
@@ -800,12 +890,13 @@ class Game implements kado.GameInterface {
 		lettersOff = false;
 		perfectOrder = [];
 		perfectCount = 0;
+		orderNum = new Map();
 		scriptCycle = 0;
 		timers = [];
 		// the fruits get faster in the well, and angry from the start deep in it
 		var depth = world.currentId;
-		speedFactor = 1.0 + Math.min(0.5, depth * 0.03);
-		var anger = depth < 6 ? 0 : Std.int(Math.min(2, (depth - 2) / 8));
+		speedFactor = 1.0 + Math.min(0.45, depth * 0.03);
+		var anger = depth < 10 ? 0 : (depth < 22 ? 1 : 2);
 		var n = 0;
 		for (b in world.current.bads) {
 			// ScriptEngine E_BAD: in the case, on its ground
@@ -895,7 +986,7 @@ class Game implements kado.GameInterface {
 	}
 
 	function runTimers() {
-		scriptCycle += 1;
+		scriptCycle += tmod;
 		var i = 0;
 		while (i < timers.length) {
 			var t = timers[i];
@@ -934,7 +1025,10 @@ class Game implements kado.GameInterface {
 		kills++;
 	}
 
-	public function onExplode(x:Float, y:Float, radius:Float) {}
+	// a bomb of Igor exploded (the script $exp of the original): the stone blocks it reaches break
+	public function onExplode(x:Float, y:Float, radius:Float) {
+		world.onExplode(x, y, radius);
+	}
 
 	public function onGameOver() {
 		fl_gameOver = true;
@@ -960,14 +1054,97 @@ class Game implements kado.GameInterface {
 		KadoKadeoManager.kkm.gameOver(stats);
 	}
 
-	// MAIN (one cycle of the game)
+	// the original ran 40 pictures a second (all its SWFs), each one a cycle of 0.8 (mt.Timer.tmod: its game counted 32
+	// cycles a second): the game runs the same, 5 pictures every 4 steps of the manager (32 a second), the moves the
+	// same to the pixel (Physics: gravity, steps and frictions with tmod), the keys read and the bads deciding 40 times
+	// a second
+	public static inline var TMOD = 0.8;
+	public static var tmod:Float = TMOD;
+
+	var picDebt:Float = 0;
+
+	// the display (KadoKadeoManager: 32 steps a second, the clips shown between their places at the last two steps): 5
+	// pictures fall on 4 steps, a step out of 4 shows two pictures (the moves would jolt 8 times a second); at the end
+	// of a step the clips that moved show the game 0.75 picture behind the time instead (between their places at the
+	// last two pictures: the steps show the game at even intervals), set back to their places before the next picture
+	// (the game only reads its own)
+	var before:Array<{mc:ASprite, x:Float, y:Float, px:Float, py:Float}> = [];
+	var shown:Array<{mc:ASprite, x:Float, y:Float, sx:Float, sy:Float}> = [];
+
 	public function update(delta:Float) {
+		for (s in shown)
+			if (s.mc._curState.x == s.sx && s.mc._curState.y == s.sy) {
+				s.mc._curState.x = s.x;
+				s.mc._curState.y = s.y;
+			}
+		shown = [];
+		picDebt += 1 / TMOD;
+		while (picDebt >= 1 - 1e-9) {
+			picDebt -= 1;
+			if (picDebt < 1 - 1e-9)
+				keepPlaces();
+			tmod = TMOD;
+			picture();
+			updateOrderMarks();
+		}
+		showBetween(picDebt + 0.25);
+	}
+
+	// the places of the clips before the last picture of a step (and their places shown at the last step: a clip shown
+	// at once in the picture, Entity.snap, is not put back between its places)
+	function keepPlaces() {
+		before = [];
+		function walk(o:Container) {
+			for (c in o.children) {
+				if (Std.is(c, ASprite)) {
+					var a:ASprite = cast c;
+					var p = a._prevState;
+					before.push({
+						mc: a,
+						x: a._curState.x,
+						y: a._curState.y,
+						px: p == null ? Math.NaN : p.x,
+						py: p == null ? Math.NaN : p.y
+					});
+				}
+				if (Std.is(c, Container))
+					walk(cast c);
+			}
+		}
+		walk(scene);
+	}
+
+	// the clips that moved in the last picture shown at w between their last two places (not a jump of more than 3
+	// cases: a new place)
+	function showBetween(w:Float) {
+		if (w < 1)
+			for (b in before) {
+				var a = b.mc;
+				var c = a._curState;
+				var p = a._prevState;
+				if (p == null || p.x != b.px || p.y != b.py)
+					continue;
+				var dx = c.x - b.x;
+				var dy = c.y - b.y;
+				if ((dx == 0 && dy == 0) || Math.abs(dx) > Data.CASE_WIDTH * 3 || Math.abs(dy) > Data.CASE_HEIGHT * 3)
+					continue;
+				var sx = b.x + dx * w;
+				var sy = b.y + dy * w;
+				shown.push({mc: a, x: c.x, y: c.y, sx: sx, sy: sy});
+				c.x = sx;
+				c.y = sy;
+			}
+		before = [];
+	}
+
+	// MAIN (GameManager.main: one picture of the game, a cycle of tmod)
+	function picture() {
 		frameCount++;
 		Snd.onCycle();
 
 		// Mode.updateConstants
 		if (!fl_lock)
-			cycle += 1;
+			cycle += tmod;
 
 		world.update();
 		gi.update();
@@ -1040,7 +1217,7 @@ class Game implements kado.GameInterface {
 			}
 			cleanKills();
 			if (!over) {
-				gameOverTimer -= 1;
+				gameOverTimer -= tmod;
 				if (gameOverTimer <= 0)
 					saveScore();
 			}
@@ -1054,7 +1231,7 @@ class Game implements kado.GameInterface {
 		fxMan.main();
 
 		// hurry up!
-		huTimer += 1;
+		huTimer += tmod;
 		if (huState < Data.HU_STEPS.length && huTimer >= hurryStep(huState) / diffFactor)
 			onHurryUp();
 		if (huState >= Data.HU_STEPS.length) {
@@ -1075,6 +1252,9 @@ class Game implements kado.GameInterface {
 		}
 
 		cleanKills();
+		// the levers Igor goes through (the script $enter of the original)
+		if (!fl_lock && !fl_gameOver)
+			world.checkLevers(player);
 		if (!world.fl_lock && !fl_lock)
 			checkLevelClear();
 		// no more bad on the map (the dying ones gone too): no more letters
@@ -1083,7 +1263,7 @@ class Game implements kado.GameInterface {
 
 		// shaking (visual)
 		if (shakeTimer > 0) {
-			shakeTimer -= 1;
+			shakeTimer -= tmod;
 			if (shakeTimer <= 0) {
 				shakeTimer = 0;
 				shakePower = 0;

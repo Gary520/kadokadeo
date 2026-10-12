@@ -1029,6 +1029,77 @@
                 <key>scale9FromFile</key>
                 <false/>
             </struct>
+            <key type="filename">src/block/1.png</key>
+            <struct type="IndividualSpriteSettings">
+                <key>pivotPoint</key>
+                <point_f>0.012195,0.5</point_f>
+                <key>spriteScale</key>
+                <double>1</double>
+                <key>scale9Enabled</key>
+                <false/>
+                <key>scale9Borders</key>
+                <rect>20,20,41,41</rect>
+                <key>scale9Paddings</key>
+                <rect>20,20,41,41</rect>
+                <key>scale9FromFile</key>
+                <false/>
+            </struct>
+            <key type="filename">src/blockEnd/1.png</key>
+            <struct type="IndividualSpriteSettings">
+                <key>pivotPoint</key>
+                <point_f>0.044944,0.431373</point_f>
+                <key>spriteScale</key>
+                <double>1</double>
+                <key>scale9Enabled</key>
+                <false/>
+                <key>scale9Borders</key>
+                <rect>22,26,44,51</rect>
+                <key>scale9Paddings</key>
+                <rect>22,26,44,51</rect>
+                <key>scale9FromFile</key>
+                <false/>
+            </struct>
+            <key type="filename">src/blockFall/1.png</key>
+            <key type="filename">src/blockFall/2.png</key>
+            <key type="filename">src/blockFall/3.png</key>
+            <key type="filename">src/blockFall/4.png</key>
+            <key type="filename">src/blockFall/5.png</key>
+            <key type="filename">src/blockFall/6.png</key>
+            <key type="filename">src/blockFall/7.png</key>
+            <key type="filename">src/blockFall/8.png</key>
+            <key type="filename">src/blockFall/9.png</key>
+            <key type="filename">src/blockFall/10.png</key>
+            <key type="filename">src/blockFall/11.png</key>
+            <key type="filename">src/blockFall/12.png</key>
+            <key type="filename">src/blockFall/13.png</key>
+            <key type="filename">src/blockFall/14.png</key>
+            <key type="filename">src/blockFall/15.png</key>
+            <key type="filename">src/blockFall/16.png</key>
+            <key type="filename">src/blockFall/17.png</key>
+            <key type="filename">src/blockFall/18.png</key>
+            <key type="filename">src/blockFall/19.png</key>
+            <key type="filename">src/blockFall/20.png</key>
+            <key type="filename">src/blockFall/21.png</key>
+            <key type="filename">src/blockFall/22.png</key>
+            <key type="filename">src/blockFall/23.png</key>
+            <key type="filename">src/blockFall/24.png</key>
+            <key type="filename">src/blockFall/25.png</key>
+            <key type="filename">src/blockFall/26.png</key>
+            <key type="filename">src/blockFall/27.png</key>
+            <struct type="IndividualSpriteSettings">
+                <key>pivotPoint</key>
+                <point_f>0.084211,0.040117</point_f>
+                <key>spriteScale</key>
+                <double>1</double>
+                <key>scale9Enabled</key>
+                <false/>
+                <key>scale9Borders</key>
+                <rect>24,256,48,511</rect>
+                <key>scale9Paddings</key>
+                <rect>24,256,48,511</rect>
+                <key>scale9FromFile</key>
+                <false/>
+            </struct>
             <key type="filename">src/bombBlack_0/1.png</key>
             <key type="filename">src/bombBlack_0/2.png</key>
             <key type="filename">src/bombBlack_0/3.png</key>
@@ -2711,6 +2782,30 @@
                 <key>scale9FromFile</key>
                 <false/>
             </struct>
+            <key type="filename">src/digitOrder/1.png</key>
+            <key type="filename">src/digitOrder/2.png</key>
+            <key type="filename">src/digitOrder/3.png</key>
+            <key type="filename">src/digitOrder/4.png</key>
+            <key type="filename">src/digitOrder/5.png</key>
+            <key type="filename">src/digitOrder/6.png</key>
+            <key type="filename">src/digitOrder/7.png</key>
+            <key type="filename">src/digitOrder/8.png</key>
+            <key type="filename">src/digitOrder/9.png</key>
+            <key type="filename">src/digitOrder/10.png</key>
+            <struct type="IndividualSpriteSettings">
+                <key>pivotPoint</key>
+                <point_f>0.5,1</point_f>
+                <key>spriteScale</key>
+                <double>1</double>
+                <key>scale9Enabled</key>
+                <false/>
+                <key>scale9Borders</key>
+                <rect>8,8,16,17</rect>
+                <key>scale9Paddings</key>
+                <rect>8,8,16,17</rect>
+                <key>scale9FromFile</key>
+                <false/>
+            </struct>
             <key type="filename">src/digitPop/1.png</key>
             <key type="filename">src/digitPop/2.png</key>
             <key type="filename">src/digitPop/3.png</key>
@@ -2721,6 +2816,7 @@
             <key type="filename">src/digitPop/8.png</key>
             <key type="filename">src/digitPop/9.png</key>
             <key type="filename">src/digitPop/10.png</key>
+            <key type="filename">src/digitPop/11.png</key>
             <struct type="IndividualSpriteSettings">
                 <key>pivotPoint</key>
                 <point_f>0,1</point_f>
@@ -2919,6 +3015,106 @@
             <key type="filename">src/extendBand/56.png</key>
             <key type="filename">src/extendBand/57.png</key>
             <key type="filename">src/extendBand/58.png</key>
+            <key type="filename">src/extendBand/59.png</key>
+            <key type="filename">src/extendBand/60.png</key>
+            <key type="filename">src/extendBand/61.png</key>
+            <key type="filename">src/extendBand/62.png</key>
+            <key type="filename">src/extendBand/63.png</key>
+            <key type="filename">src/extendBand/64.png</key>
+            <key type="filename">src/extendBand/65.png</key>
+            <key type="filename">src/extendBand/66.png</key>
+            <key type="filename">src/extendBand/67.png</key>
+            <key type="filename">src/extendBand/68.png</key>
+            <key type="filename">src/extendBand/69.png</key>
+            <key type="filename">src/extendBand/70.png</key>
+            <key type="filename">src/extendBand/71.png</key>
+            <key type="filename">src/extendBand/72.png</key>
+            <key type="filename">src/extendBand/73.png</key>
+            <key type="filename">src/extendBand/74.png</key>
+            <key type="filename">src/extendBand/75.png</key>
+            <key type="filename">src/extendBand/76.png</key>
+            <key type="filename">src/extendBand/77.png</key>
+            <key type="filename">src/extendBand/78.png</key>
+            <key type="filename">src/extendBand/79.png</key>
+            <key type="filename">src/extendBand/80.png</key>
+            <key type="filename">src/extendBand/81.png</key>
+            <key type="filename">src/extendBand/82.png</key>
+            <key type="filename">src/extendBand/83.png</key>
+            <key type="filename">src/extendBand/84.png</key>
+            <key type="filename">src/extendBand/85.png</key>
+            <key type="filename">src/extendBand/86.png</key>
+            <key type="filename">src/extendBand/87.png</key>
+            <key type="filename">src/extendBand/88.png</key>
+            <key type="filename">src/extendBand/89.png</key>
+            <key type="filename">src/extendBand/90.png</key>
+            <key type="filename">src/extendBand/91.png</key>
+            <key type="filename">src/extendBand/92.png</key>
+            <key type="filename">src/extendBand/93.png</key>
+            <key type="filename">src/extendBand/94.png</key>
+            <key type="filename">src/extendBand/95.png</key>
+            <key type="filename">src/extendBand/96.png</key>
+            <key type="filename">src/extendBand/97.png</key>
+            <key type="filename">src/extendBand/98.png</key>
+            <key type="filename">src/extendBand/99.png</key>
+            <key type="filename">src/extendBand/100.png</key>
+            <key type="filename">src/extendBand/101.png</key>
+            <key type="filename">src/extendBand/102.png</key>
+            <key type="filename">src/extendBand/103.png</key>
+            <key type="filename">src/extendBand/104.png</key>
+            <key type="filename">src/extendBand/105.png</key>
+            <key type="filename">src/extendBand/106.png</key>
+            <key type="filename">src/extendBand/107.png</key>
+            <key type="filename">src/extendBand/108.png</key>
+            <key type="filename">src/extendBand/109.png</key>
+            <key type="filename">src/extendBand/110.png</key>
+            <key type="filename">src/extendBand/111.png</key>
+            <key type="filename">src/extendBand/112.png</key>
+            <key type="filename">src/extendBand/113.png</key>
+            <key type="filename">src/extendBand/114.png</key>
+            <key type="filename">src/extendBand/115.png</key>
+            <key type="filename">src/extendBand/116.png</key>
+            <key type="filename">src/extendBand/117.png</key>
+            <key type="filename">src/extendBand/118.png</key>
+            <key type="filename">src/extendBand/119.png</key>
+            <key type="filename">src/extendBand/120.png</key>
+            <key type="filename">src/extendBand/121.png</key>
+            <key type="filename">src/extendBand/122.png</key>
+            <key type="filename">src/extendBand/123.png</key>
+            <key type="filename">src/extendBand/124.png</key>
+            <key type="filename">src/extendBand/125.png</key>
+            <key type="filename">src/extendBand/126.png</key>
+            <key type="filename">src/extendBand/127.png</key>
+            <key type="filename">src/extendBand/128.png</key>
+            <key type="filename">src/extendBand/129.png</key>
+            <key type="filename">src/extendBand/130.png</key>
+            <key type="filename">src/extendBand/131.png</key>
+            <key type="filename">src/extendBand/132.png</key>
+            <key type="filename">src/extendBand/133.png</key>
+            <key type="filename">src/extendBand/134.png</key>
+            <key type="filename">src/extendBand/135.png</key>
+            <key type="filename">src/extendBand/136.png</key>
+            <key type="filename">src/extendBand/137.png</key>
+            <key type="filename">src/extendBand/138.png</key>
+            <key type="filename">src/extendBand/139.png</key>
+            <key type="filename">src/extendBand/140.png</key>
+            <key type="filename">src/extendBand/141.png</key>
+            <key type="filename">src/extendBand/142.png</key>
+            <key type="filename">src/extendBand/143.png</key>
+            <key type="filename">src/extendBand/144.png</key>
+            <key type="filename">src/extendBand/145.png</key>
+            <key type="filename">src/extendBand/146.png</key>
+            <key type="filename">src/extendBand/147.png</key>
+            <key type="filename">src/extendBand/148.png</key>
+            <key type="filename">src/extendBand/149.png</key>
+            <key type="filename">src/extendBand/150.png</key>
+            <key type="filename">src/extendBand/151.png</key>
+            <key type="filename">src/extendBand/152.png</key>
+            <key type="filename">src/extendBand/153.png</key>
+            <key type="filename">src/extendBand/154.png</key>
+            <key type="filename">src/extendBand/155.png</key>
+            <key type="filename">src/extendBand/156.png</key>
+            <key type="filename">src/extendBand/157.png</key>
+            <key type="filename">src/extendBand/158.png</key>
             <struct type="IndividualSpriteSettings">
                 <key>pivotPoint</key>
                 <point_f>0.5,0.503876</point_f>
@@ -2991,17 +3187,117 @@
             <key type="filename">src/extendFx/56.png</key>
             <key type="filename">src/extendFx/57.png</key>
             <key type="filename">src/extendFx/58.png</key>
+            <key type="filename">src/extendFx/59.png</key>
+            <key type="filename">src/extendFx/60.png</key>
+            <key type="filename">src/extendFx/61.png</key>
+            <key type="filename">src/extendFx/62.png</key>
+            <key type="filename">src/extendFx/63.png</key>
+            <key type="filename">src/extendFx/64.png</key>
+            <key type="filename">src/extendFx/65.png</key>
+            <key type="filename">src/extendFx/66.png</key>
+            <key type="filename">src/extendFx/67.png</key>
+            <key type="filename">src/extendFx/68.png</key>
+            <key type="filename">src/extendFx/69.png</key>
+            <key type="filename">src/extendFx/70.png</key>
+            <key type="filename">src/extendFx/71.png</key>
+            <key type="filename">src/extendFx/72.png</key>
+            <key type="filename">src/extendFx/73.png</key>
+            <key type="filename">src/extendFx/74.png</key>
+            <key type="filename">src/extendFx/75.png</key>
+            <key type="filename">src/extendFx/76.png</key>
+            <key type="filename">src/extendFx/77.png</key>
+            <key type="filename">src/extendFx/78.png</key>
+            <key type="filename">src/extendFx/79.png</key>
+            <key type="filename">src/extendFx/80.png</key>
+            <key type="filename">src/extendFx/81.png</key>
+            <key type="filename">src/extendFx/82.png</key>
+            <key type="filename">src/extendFx/83.png</key>
+            <key type="filename">src/extendFx/84.png</key>
+            <key type="filename">src/extendFx/85.png</key>
+            <key type="filename">src/extendFx/86.png</key>
+            <key type="filename">src/extendFx/87.png</key>
+            <key type="filename">src/extendFx/88.png</key>
+            <key type="filename">src/extendFx/89.png</key>
+            <key type="filename">src/extendFx/90.png</key>
+            <key type="filename">src/extendFx/91.png</key>
+            <key type="filename">src/extendFx/92.png</key>
+            <key type="filename">src/extendFx/93.png</key>
+            <key type="filename">src/extendFx/94.png</key>
+            <key type="filename">src/extendFx/95.png</key>
+            <key type="filename">src/extendFx/96.png</key>
+            <key type="filename">src/extendFx/97.png</key>
+            <key type="filename">src/extendFx/98.png</key>
+            <key type="filename">src/extendFx/99.png</key>
+            <key type="filename">src/extendFx/100.png</key>
+            <key type="filename">src/extendFx/101.png</key>
+            <key type="filename">src/extendFx/102.png</key>
+            <key type="filename">src/extendFx/103.png</key>
+            <key type="filename">src/extendFx/104.png</key>
+            <key type="filename">src/extendFx/105.png</key>
+            <key type="filename">src/extendFx/106.png</key>
+            <key type="filename">src/extendFx/107.png</key>
+            <key type="filename">src/extendFx/108.png</key>
+            <key type="filename">src/extendFx/109.png</key>
+            <key type="filename">src/extendFx/110.png</key>
+            <key type="filename">src/extendFx/111.png</key>
+            <key type="filename">src/extendFx/112.png</key>
+            <key type="filename">src/extendFx/113.png</key>
+            <key type="filename">src/extendFx/114.png</key>
+            <key type="filename">src/extendFx/115.png</key>
+            <key type="filename">src/extendFx/116.png</key>
+            <key type="filename">src/extendFx/117.png</key>
+            <key type="filename">src/extendFx/118.png</key>
+            <key type="filename">src/extendFx/119.png</key>
+            <key type="filename">src/extendFx/120.png</key>
+            <key type="filename">src/extendFx/121.png</key>
+            <key type="filename">src/extendFx/122.png</key>
+            <key type="filename">src/extendFx/123.png</key>
+            <key type="filename">src/extendFx/124.png</key>
+            <key type="filename">src/extendFx/125.png</key>
+            <key type="filename">src/extendFx/126.png</key>
+            <key type="filename">src/extendFx/127.png</key>
+            <key type="filename">src/extendFx/128.png</key>
+            <key type="filename">src/extendFx/129.png</key>
+            <key type="filename">src/extendFx/130.png</key>
+            <key type="filename">src/extendFx/131.png</key>
+            <key type="filename">src/extendFx/132.png</key>
+            <key type="filename">src/extendFx/133.png</key>
+            <key type="filename">src/extendFx/134.png</key>
+            <key type="filename">src/extendFx/135.png</key>
+            <key type="filename">src/extendFx/136.png</key>
+            <key type="filename">src/extendFx/137.png</key>
+            <key type="filename">src/extendFx/138.png</key>
+            <key type="filename">src/extendFx/139.png</key>
+            <key type="filename">src/extendFx/140.png</key>
+            <key type="filename">src/extendFx/141.png</key>
+            <key type="filename">src/extendFx/142.png</key>
+            <key type="filename">src/extendFx/143.png</key>
+            <key type="filename">src/extendFx/144.png</key>
+            <key type="filename">src/extendFx/145.png</key>
+            <key type="filename">src/extendFx/146.png</key>
+            <key type="filename">src/extendFx/147.png</key>
+            <key type="filename">src/extendFx/148.png</key>
+            <key type="filename">src/extendFx/149.png</key>
+            <key type="filename">src/extendFx/150.png</key>
+            <key type="filename">src/extendFx/151.png</key>
+            <key type="filename">src/extendFx/152.png</key>
+            <key type="filename">src/extendFx/153.png</key>
+            <key type="filename">src/extendFx/154.png</key>
+            <key type="filename">src/extendFx/155.png</key>
+            <key type="filename">src/extendFx/156.png</key>
+            <key type="filename">src/extendFx/157.png</key>
+            <key type="filename">src/extendFx/158.png</key>
             <struct type="IndividualSpriteSettings">
                 <key>pivotPoint</key>
-                <point_f>0.63913,0.5</point_f>
+                <point_f>0.428966,0.467033</point_f>
                 <key>spriteScale</key>
                 <double>1</double>
                 <key>scale9Enabled</key>
                 <false/>
                 <key>scale9Borders</key>
-                <rect>115,20,230,40</rect>
+                <rect>181,182,362,364</rect>
                 <key>scale9Paddings</key>
-                <rect>115,20,230,40</rect>
+                <rect>181,182,362,364</rect>
                 <key>scale9FromFile</key>
                 <false/>
             </struct>
@@ -4982,6 +5278,22 @@
                 <rect>25,27,50,54</rect>
                 <key>scale9Paddings</key>
                 <rect>25,27,50,54</rect>
+                <key>scale9FromFile</key>
+                <false/>
+            </struct>
+            <key type="filename">src/lever/1.png</key>
+            <key type="filename">src/lever/2.png</key>
+            <struct type="IndividualSpriteSettings">
+                <key>pivotPoint</key>
+                <point_f>0.02381,0.944444</point_f>
+                <key>spriteScale</key>
+                <double>1</double>
+                <key>scale9Enabled</key>
+                <false/>
+                <key>scale9Borders</key>
+                <rect>10,14,21,27</rect>
+                <key>scale9Paddings</key>
+                <rect>10,14,21,27</rect>
                 <key>scale9FromFile</key>
                 <false/>
             </struct>
@@ -9005,6 +9317,28 @@
                 <key>scale9FromFile</key>
                 <false/>
             </struct>
+            <key type="filename">src/supaSmoke/1.png</key>
+            <key type="filename">src/supaSmoke/2.png</key>
+            <key type="filename">src/supaSmoke/3.png</key>
+            <key type="filename">src/supaSmoke/4.png</key>
+            <key type="filename">src/supaSmoke/5.png</key>
+            <key type="filename">src/supaSmoke/6.png</key>
+            <key type="filename">src/supaSmoke/7.png</key>
+            <key type="filename">src/supaSmoke/8.png</key>
+            <struct type="IndividualSpriteSettings">
+                <key>pivotPoint</key>
+                <point_f>0.513393,0.524887</point_f>
+                <key>spriteScale</key>
+                <double>1</double>
+                <key>scale9Enabled</key>
+                <false/>
+                <key>scale9Borders</key>
+                <rect>56,55,112,110</rect>
+                <key>scale9Paddings</key>
+                <rect>56,55,112,110</rect>
+                <key>scale9FromFile</key>
+                <false/>
+            </struct>
             <key type="filename">src/tileEnd/1.png</key>
             <key type="filename">src/tileEnd/2.png</key>
             <key type="filename">src/tileEnd/3.png</key>
@@ -9153,6 +9487,11 @@
             <key type="filename">src/txtFx/2.png</key>
             <key type="filename">src/txtFx/3.png</key>
             <key type="filename">src/txtFx/4.png</key>
+            <key type="filename">src/txtFx/5.png</key>
+            <key type="filename">src/txtFx/6.png</key>
+            <key type="filename">src/txtFx/7.png</key>
+            <key type="filename">src/txtFx/8.png</key>
+            <key type="filename">src/txtFx/9.png</key>
             <struct type="IndividualSpriteSettings">
                 <key>pivotPoint</key>
                 <point_f>0.5,0.5</point_f>
@@ -9161,9 +9500,9 @@
                 <key>scale9Enabled</key>
                 <false/>
                 <key>scale9Borders</key>
-                <rect>62,8,124,16</rect>
+                <rect>62,9,124,18</rect>
                 <key>scale9Paddings</key>
-                <rect>62,8,124,16</rect>
+                <rect>62,9,124,18</rect>
                 <key>scale9FromFile</key>
                 <false/>
             </struct>

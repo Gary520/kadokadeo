@@ -289,7 +289,7 @@ class Physics extends Animator {
 		// wind
 		if (fl_wind) {
 			if (fl_stable && game.fl_wind)
-				dx += game.windSpeed;
+				dx += game.windSpeed * Game.tmod;
 		}
 
 		// fall
@@ -302,22 +302,24 @@ class Physics extends Animator {
 			// gravity
 			if (!fl_skipNextGravity && !fl_stable && fl_gravity) {
 				if (dy < 0) {
-					dy += gravityFactor * Data.GRAVITY;
+					dy += gravityFactor * Data.GRAVITY * Game.tmod;
 				} else {
 					if (fallStart == null)
 						fallStart = y;
-					dy += fallFactor * Data.FALL_SPEED;
+					dy += fallFactor * Data.FALL_SPEED * Game.tmod;
 				}
 			}
 			fl_skipNextGravity = false;
 
 			prefix();
 
-			// steps of at most one case
-			var total = Math.ceil(Math.abs(dx) / Data.STEP_MAX);
-			total = Std.int(Math.max(total, Math.ceil(Math.abs(dy) / Data.STEP_MAX)));
-			var sdx = dx / total;
-			var sdy = dy / total;
+			// steps of at most one case (calcSteps: the move of a picture, tmod of a cycle)
+			var dxTotal = dx * Game.tmod;
+			var dyTotal = dy * Game.tmod;
+			var total = Math.ceil(Math.abs(dxTotal) / Data.STEP_MAX);
+			total = Std.int(Math.max(total, Math.ceil(Math.abs(dyTotal) / Data.STEP_MAX)));
+			var sdx = dxTotal / total;
+			var sdy = dyTotal / total;
 			var step = 0;
 
 			while (!fl_stopStepping && step < total) {
@@ -444,7 +446,7 @@ class Physics extends Animator {
 				if (slideFriction == null)
 					dx *= game.sFriction;
 				else
-					dx *= slideFriction;
+					dx *= Math.pow(slideFriction, Game.tmod);
 			} else {
 				dx *= game.xFriction;
 				dy *= game.yFriction;

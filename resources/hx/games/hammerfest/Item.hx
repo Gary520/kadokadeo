@@ -240,3 +240,56 @@ class SupaItem extends Mover {
 		}
 	}
 }
+
+// hammer/entity/supa/Smoke.mt: the cloud of a fight in the middle of the screen for 3 seconds (the sunflower: all the
+// bads die), 265 % of its clip, the clip playing by itself (a picture of its loop every picture of the game, like the
+// SWF at 40 pictures a second)
+class Smoke extends Mover {
+	var f:Int;
+
+	public function new() {
+		super("supaSmoke");
+		fl_hitGround = false;
+		fl_hitWall = false;
+		fl_gravity = false;
+		fl_friction = false;
+		fl_hitBorder = false;
+		fl_alphaBlink = false;
+		fl_blink = false;
+		minAlpha = 0;
+		disableAnimator();
+		f = 0;
+	}
+
+	override public function animName(id:Int):String {
+		return "supaSmoke";
+	}
+
+	override public function init(g:Game) {
+		super.init(g);
+		register(Data.SUPA);
+	}
+
+	public static function attach(g:Game):Smoke {
+		var s = new Smoke();
+		s.attachMc(Data.DP_SUPA);
+		s.init(g);
+		s.moveTo(Data.GAME_WIDTH / 2, Data.GAME_HEIGHT / 2);
+		s.scale(265);
+		s.setLifeTimer(Data.SECOND * 3);
+		s.endUpdate();
+		return s;
+	}
+
+	override public function infix() {}
+
+	override public function tAdd(cx:Int, cy:Int) {}
+
+	override public function tRem(cx:Int, cy:Int) {}
+
+	override public function update() {
+		super.update();
+		f++;
+		pic.show(1 + f % pic.count());
+	}
+}
