@@ -103,6 +103,32 @@ class Player extends Physics {
 
 	// the scarf of Igor (clips of the weapon: currentWeapon + 1), drawn over his picture in white, tinted
 	var scarf:Pic;
+	// his head (Data.HEAD_*: the clips of his head, drawn over his picture and his scarf: the disguises of the original,
+	// key C) and his skin (1 Igor, 2 Sandy: key V): Game.head / Game.skin, only pictures
+	var headPic:Pic;
+
+	// (Sandy: the white of the snow of Igor in the colour of the sand, like the clips of her skin)
+	static inline var SANDY_TINT = 0xf0d48f;
+
+	var capeClock:Int = 0;
+
+	function updateHead() {
+		if (headPic == null) {
+			headPic = new Pic("playerHead1_0");
+			mc.addChild(headPic);
+		}
+		var a = "playerHead" + Game.head + "_" + pic.anim.substr(7);
+		if (Art.RES.exists(a) || Tex.get(a).length > 0)
+			headPic.setAnim(a);
+		// (a cape playing by itself: its own clock, one of its pictures a cycle, whatever Igor does)
+		capeClock++;
+		var ph = Art.HEAD_PHASES.get(headPic.anim);
+		if (ph != null)
+			headPic.show(Std.int(Math.min((pic.cur - 1) * ph + capeClock % ph + 1, headPic.count())));
+		else
+			headPic.show(Std.int(Math.min(pic.cur, headPic.count())));
+		pic.tint = Game.skin == 2 ? SANDY_TINT : 0xffffff;
+	}
 
 	// (the scarves of the weapons of the special items have patterns: their main colour)
 	static var SPECIAL_TINTS = [6 => 0xc8d800, 7 => 0xff7a30, 8 => 0xa8eaff];
@@ -273,6 +299,13 @@ class Player extends Physics {
 		super.onTeleport();
 		dx = 0;
 		dy = 0;
+		// (the bubble of a shield goes with him at once, not across the screen)
+		if (shieldMC != null && shieldMC.mc != null) {
+			shieldMC.mc._x = x;
+			shieldMC.mc._y = y;
+			if (shieldMC.mc._prevState != null)
+				shieldMC.mc._prevState.copyFrom(shieldMC.mc._curState);
+		}
 	}
 
 	// death of the player (fell out of the field)
@@ -367,13 +400,17 @@ class Player extends Physics {
 	}
 
 	public function curse(id:Int) {
-		var c = new Pic("curse", id);
+		// (the curses that move in the original have their own pictures: curse_<id>)
+		var own = Art.SIZE.exists("curse_" + id);
+		var c = own ? new Pic("curse_" + id) : new Pic("curse", id);
 		var holder = new ASprite();
 		holder.addChild(c);
 		holder._alpha = 70;
 		game.dm.add(holder, Data.DP_FX);
 		stick(holder, 0, -Data.CASE_HEIGHT * 2.5);
 		setElaStick(0.25);
+		if (own)
+			stickerPic = c;
 	}
 
 	override public function playAnim(a:AnimDef) {
@@ -701,6 +738,7 @@ class Player extends Physics {
 		}
 		_xscale = dir * Math.abs(_xscale);
 		updateScarf();
+		updateHead();
 	}
 
 	override public function update() {
@@ -784,15 +822,18 @@ class Player extends Physics {
 			if (animId == Data.ANIM_PLAYER_JUMP_DOWN.id && fl_stable)
 				playAnim(Data.ANIM_PLAYER_JUMP_LAND);
 
-			// waiting animation (with a bomb in the hands only: the other weapons have no picture for it)
-			if (animId == Data.ANIM_PLAYER_STOP.id && isBombWeapon(currentWeapon)) {
+			// waiting animation (with every weapon, like the original: its scarf has the pictures of both)
+			if (animId == Data.ANIM_PLAYER_STOP.id) {
 				if (waitTimer <= 0)
 					waitTimer = Data.WAIT_TIMER;
 				waitTimer -= Game.tmod;
 				if (waitTimer <= 0) {
-					// (the second waiting animation of the original is not in the mini version: the first one instead)
-					Cs.rnd(20);
-					playAnim(Data.ANIM_PLAYER_WAIT1);
+					// (players: "il manque des animations quand le perso est afk": the two of the original, the chewing gum
+					// 19 times out of 20, the dance)
+					if (Cs.rnd(20) == 0)
+						playAnim(Data.ANIM_PLAYER_WAIT1);
+					else
+						playAnim(Data.ANIM_PLAYER_WAIT2);
 				}
 			}
 

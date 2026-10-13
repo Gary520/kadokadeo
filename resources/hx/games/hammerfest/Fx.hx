@@ -88,6 +88,7 @@ class Animation {
 
 // hammer/entity/fx/Particle.mt: a bouncing particle (ice, stones, sparks...)
 class Particle extends Mover {
+	var own:Bool = false;
 	var bounce:Float;
 	var skipWallsY:Float;
 	var pid:Null<Int>;
@@ -114,7 +115,9 @@ class Particle extends Mover {
 		bounce = Cs.vrnd(65) / 10 + 1.5;
 		setNext((1 + Cs.vrnd(50) / 10) * (Cs.vrnd(2) * 2 - 1), -bounce, 0, Data.ACTION_MOVE);
 		pic.setAnim(animName(0));
-		pic.show(Cs.vrnd(pic.count()) + 1);
+		// (a clip playing by itself, from its first picture: the spark twinkling, the bits of raspberry turning)
+		own = Art.LOGICAL.get(pic.anim) == 1 && pic.count() > 1;
+		pic.show(own ? 1 : Cs.vrnd(pic.count()) + 1);
 		scale(Cs.vrnd(50) + 50);
 		rotation = Cs.vrnd(360);
 		moveTo(x, y);
@@ -135,6 +138,12 @@ class Particle extends Mover {
 				bounceFactor = 0.5;
 				next.dx *= 0.3;
 				next.dy = -Math.abs(next.dy);
+			case Data.PARTICLE_BLOB:
+				// (a drop of a crawler: falls slower, stays 3 seconds where it lands, shrinks instead of blinking)
+				gravityFactor = 0.6;
+				fallFactor = gravityFactor;
+				updateLifeTimer(Data.SECOND * 3);
+				fl_blink = false;
 			default:
 		}
 		endUpdate();
@@ -157,6 +166,13 @@ class Particle extends Mover {
 	}
 
 	override public function onHitGround(h:Float) {
+		// (a drop sticks where it lands)
+		if (pid == Data.PARTICLE_BLOB) {
+			recal();
+			dx = 0;
+			dy = 0;
+			fl_gravity = false;
+		}
 		skipWallsY = 0;
 		fl_hitWall = true;
 		setNext(dx, -dy * bounceFactor, 0, Data.ACTION_MOVE);
@@ -171,8 +187,12 @@ class Particle extends Mover {
 	}
 
 	override public function onHitWall() {
-		if (fl_hitWall)
-			dx = -dx * 0.5;
+		if (fl_hitWall) {
+			if (pid == Data.PARTICLE_BLOB)
+				dx = 0;
+			else
+				dx = -dx * 0.5;
+		}
 	}
 
 	override public function onDeathLine() {
@@ -182,10 +202,17 @@ class Particle extends Mover {
 	override public function endUpdate() {
 		rotation += dx * 2;
 		super.endUpdate();
+		// (a drop shrinks over the last two thirds of its life)
+		if (pid == Data.PARTICLE_BLOB && totalLife != null && totalLife > 0) {
+			_xscale = 100 * scaleFactor * Math.min(1, 1.5 * lifeTimer / totalLife);
+			_yscale = _xscale;
+		}
 	}
 
 	override public function update() {
-		if (Math.abs(dx) <= 0.5) {
+		if (own)
+			pic.show(pic.cur % pic.count() + 1);
+		if (Math.abs(dx) <= 0.5 && pid != Data.PARTICLE_BLOB) {
 			lifeTimer -= Game.tmod;
 			if (lifeTimer <= 0)
 				onLifeTimer();
@@ -425,8 +452,9 @@ class FxManager {
 		game.ui.addChild(itemName);
 	}
 
-	// name of a special item, at the top of the field
-	public function attachItemName(idx:Int) {
+	// name of a special item at the top of the field, the item at its left like attachItemName of the original (about
+	// the height of the text: its 75 % were too big next to the name)
+	public function attachItemName(idx:Int, ?icon:String, ?iconFrame:Int = 1) {
 		if (itemName != null) {
 			if (itemName.parent != null)
 				itemName.parent.removeChild(itemName);
@@ -436,6 +464,23 @@ class FxManager {
 		itemName.addChild(new Pic("itemName", idx + 1));
 		itemName._x = Game.docX(Data.GAME_WIDTH / 2);
 		itemName._y = 10;
+		if (icon != null) {
+			var w = idx < Art.ITEM_NAME_W.length ? Art.ITEM_NAME_W[idx] : 0;
+			var s = Art.SIZE.get(icon);
+			var iw = s != null ? s[(iconFrame - 1) * 2] : 20;
+			var ih = s != null ? s[(iconFrame - 1) * 2 + 1] : 20;
+			// (half its size at the most; the tall ones (a candle, a lamp and its rays) not under 35 %)
+			var k = Math.max(0.35, Math.min(0.5, 14 / Math.max(1, ih)));
+			var p = new Pic(icon, iconFrame);
+			// (its middle on the middle of the text: the item stands on its origin)
+			p._x = -(w * 0.5 + 6 + iw * k * 0.5);
+			p._y = (ih * 0.5 - 1) * k;
+			p._xscale = k * 100;
+			p._yscale = k * 100;
+			itemName.addChild(p);
+			// (the item and its name centred together)
+			itemName._x += (6 + iw * k) * 0.5;
+		}
 		game.ui.addChild(itemName);
 	}
 

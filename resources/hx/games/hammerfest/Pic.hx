@@ -31,6 +31,7 @@ class Pic extends ASprite {
 			return;
 		var xs = _xscale;
 		var ys = _yscale;
+		var old = baseScale;
 		this.anim = anim;
 		frames = Tex.get(anim);
 		baseScale = 1 / (Game.K * res(anim));
@@ -40,6 +41,13 @@ class Pic extends ASprite {
 		if (_curState != null) {
 			_xscale = xs;
 			_yscale = ys;
+			// (a texture of another resolution: the scale of the step before converted too, else the picture drawn
+			// between the two steps is at a scale between both, too small or too big for a moment: Igor's waits (0.6)
+			// flickered at their start and end)
+			if (_prevState != null && old != baseScale) {
+				_prevState.xscale *= baseScale / old;
+				_prevState.yscale *= baseScale / old;
+			}
 		}
 	}
 

@@ -38,6 +38,8 @@ class Entity {
 	public var parent:Entity;
 
 	public var sticker:ASprite;
+	// (a picture of the sticker playing by itself: a curse bobbing, turning)
+	public var stickerPic:Pic = null;
 	public var stickerX:Float;
 	public var stickerY:Float;
 	public var elaStickFactor:Float;
@@ -193,6 +195,7 @@ class Entity {
 
 	public function unstick() {
 		fl_stick = false;
+		stickerPic = null;
 		if (sticker != null) {
 			if (sticker.parent != null)
 				sticker.parent.removeChild(sticker);
@@ -374,6 +377,8 @@ class Entity {
 		oldX = x;
 		oldY = y;
 		if (fl_stick && sticker != null) {
+			if (stickerPic != null)
+				stickerPic.show(stickerPic.cur % stickerPic.count() + 1);
 			if (fl_elastick) {
 				sticker._x = sticker._x + (x - sticker._x) * elaStickFactor + stickerX;
 				sticker._y = sticker._y + (y - sticker._y) * elaStickFactor + stickerY;

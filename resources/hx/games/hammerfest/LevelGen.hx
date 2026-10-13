@@ -10,20 +10,20 @@ typedef GPt = {x:Int, y:Int};
 typedef GVault = {x0:Int, x1:Int, y:Int, top:Int, door:Array<GPt>};
 
 // The levels of the well, made at random (the random of the game: a seed gives its well, the replay its levels), each
-// one around an idea, like a level made by hand:
-// - its bads drawn first (LevelCast: the kinds coming one after the other along the well, a kind leading each level);
-// - its features drawn for the depth (LevelFeatures: none, one or two: a vault, a laser on a passage, no bombs for a
+// one drawn around an idea, like a level made by hand:
+// - its bads drawn first (LevelCast: the kinds coming one after the other along the well, a kind leading each level;
+//   the leapers from level 25);
+// - its features drawn for the depth (LevelFeatures: none, one or two: a vault, lasers on its passages, no bombs for a
 //   while, a pit of spikes, spikes on the ways, teleporters, saws, a nest);
-// - its architecture (LevelCompose): a way of building drawn for it (trunks, decks, walls, rocks, slopes) with its own
-//   measures, the stages of its dangerous bads made for what they do, hung on what is built: never a level seen
-//   before (no shapes from a list), never rows of platforms one under the other with the way down zigzagging;
+// - its drawing (LevelDesign): a way of drawing chosen for its bads and its dimension (spines, a frame, a lattice, a
+//   tree, rooms, slopes, stalactites, arcades), with its variants and its measures, mirrored more often than not;
 // - the ways of Igor in it (LevelRoutes: where he has to go), his moves (jumps of 3 cases up, 4 across), every bad and the
 //   bottom reached, the ice of every bad able to go out of the level (or a laser of black bombs on his way);
 // - its bads placed for what they do (LevelBads: the strawberries far apart, their ball across the ways of Igor and
 //   between him and them, the lemons over and under his ways, the apples along his rows, the pears over the places he
 //   walks...), the devices and hazards put where they mean something (LevelFeatures).
-// A few levels are made, built in other ways: the best one is kept (rated on the bads in their places, on the look of a
-// level made by hand, on not being like the last levels).
+// A few levels are drawn that way: the best one is kept (rated on the bads in their places, on the look of a level made
+// by hand, on not being like the last levels).
 class LevelGen {
 	static inline var W = Data.LEVEL_WIDTH;
 	static inline var H = Data.LEVEL_HEIGHT;
@@ -82,6 +82,21 @@ class LevelGen {
 	public var px:Int;
 	public var py:Int;
 	public var kind:String;
+	public var variant:String = "";
+	// the passages the structure made for lasers (LevelDesign)
+	public var designGates:Array<Array<GPt>> = [];
+	// the teleporters drawn with the level (a level split in two), the room shut reached by a teleporter
+	public var designTeles:Bool = false;
+	// the idea of the level (LevelConcept), its bottom left open over the void
+	public var concept:LevelConcept.Concept = null;
+	public var open:Bool = false;
+	// the columns without ground once the level is drawn (over the void: the columns of the void)
+	public var openBase:Int = 0;
+	public var close:LevelDesign.DClose = null;
+	#if gentest
+	public var designMap:Array<Array<Int>>;
+	public static var lastDesign:Array<Array<Int>>;
+	#end
 	public var sym:Bool;
 
 	var depth:Int;
@@ -96,7 +111,7 @@ class LevelGen {
 	var noBads:Array<GSeg>; // segments kept for the hazards (saws)
 	var missing:Int;
 
-	// the features of the level (LevelFeatures.draw), its vault (LevelCompose), the lasers put
+	// the features of the level (LevelFeatures.draw), its vault (LevelDesign), the lasers put
 	public var want:Array<String> = [];
 	public var vault:GVault = null;
 	public var gates:Array<{cells:Array<GPt>, v:Int}> = [];
@@ -105,9 +120,6 @@ class LevelGen {
 	// the roofs of the shelters of the strawberries (LevelFeatures.shelters): no saw goes around them
 	public var roofs:Array<GPt> = [];
 	public var redJump:Bool = false;
-	// the places drawn for some bads (the stages of LevelCompose): LevelBads puts them there first
-	public var spots:Array<{id:Int, x:Int, y:Int}> = [];
-	public var stageKinds:Array<String> = [];
 
 	var routes:LevelRoutes;
 	var feats:LevelFeatures;
@@ -143,77 +155,113 @@ class LevelGen {
 	public static var lastGuard:Int;
 	public static var lastExpo:Array<Int> = [];
 	public static var lastStraw:Array<{x:Int, y:Int, e:Int}> = [];
-	public static var lastStages:Array<String> = [];
-	public static var lastSpots:Array<{id:Int, x:Int, y:Int}> = [];
 	public static var lastLike:Float = 0;
+	public static var lastConcept:String = "";
+	public static var lastOpen:Bool = false;
 
 	// the ground of the last levels (the last one first): a level like one of them loses
 	static var recentMaps:Array<Array<Array<Int>>> = [];
-	// the ways of building of the last levels (LevelCompose.SYSTEMS), the last one first
-	static var systems:Array<Int> = [];
+	// the plans of the last levels (LevelDesign.plan), the last one first: their motifs do not come back soon
+	static var plans:Array<LevelDesign.DPlan> = [];
+	// what the last levels look like (LevelDesign.traits), the last one first
+	static var recentTraits:Array<Int> = [];
+	// the drawings of the last 12 levels (layout, motifs, variants: "bands:arches|hooks/ceiling-t,sizes"): the very same
+	// drawing does not come back so soon
+	static var recentLabels:Array<String> = [];
+	public static var lastTraits:Int = 0;
 
-	// levels composed and rated for each depth
-	static inline var TRIES = 8;
+	// levels drawn and rated for a plan
+	static inline var TRIES = 6;
 
-	// test harness: every level built this way (LevelCompose.SYSTEMS)
+	// test harness: every level drawn with this layout or this motif (LevelDesign.LAYOUTS, the motifs)
 	public static var forceKind:String = null;
 
 	public static function reset() {
 		LevelCast.reset();
+		LevelConcept.reset();
 		recentMaps = [];
-		systems = [];
+		plans = [];
+		recentTraits = [];
+		recentLabels = [];
 		zoneSkin = null;
 		zoneEnd = -1;
 	}
 
-	// the bads of the level and its features drawn first, then levels built in other ways (the ways of building tried in
-	// turn from one drawn, the ones of the dimension more often, the one of the last level last): the best one is kept
+	// the bads of the level and its features drawn first, then its plan (LevelDesign.plan: a layout and its motifs,
+	// drawn for the bads of the level, the dimension, never the motifs of the last levels), several levels drawn with
+	// it: the best one is kept; another plan when none of them is right (or when it is like one of the last levels)
 	public static function make(depth:Int):LevelData {
-		var lineup = LevelCast.make(depth);
+		// the idea of the level first: its bads, its devices, its drawing are made for it
+		var concept = LevelConcept.pick(depth);
+		// (the bottom left open over the void, for the whole level: the bottom floor holds bads no longer, a few bads
+		// less; a jump missed costs a life)
+		var open = Cs.rnd(1000) < concept.open * 1000;
+		var lineup = LevelCast.make(depth, concept, open);
 		lastCast = lineup;
-		var want = LevelFeatures.draw(depth, lineup);
-		var n = LevelCompose.SYSTEMS.length;
-		var forced = forceKind != null ? LevelCompose.SYSTEMS.indexOf(forceKind) : -1;
-		var th = LevelTheme.of(depth);
-		var order:Array<Int> = [];
-		var s0 = Cs.rnd(n);
-		for (i in 0...n)
-			order.push((s0 + i) % n);
-		// (the ways of the dimension first, the way of the last level at the end)
-		order.sort(function(a, b) {
-			var va = (th.systems.indexOf(LevelCompose.SYSTEMS[a]) >= 0 ? 0 : 1) + (systems.length > 0 && systems[0] == a ? 2 : 0);
-			var vb = (th.systems.indexOf(LevelCompose.SYSTEMS[b]) >= 0 ? 0 : 1) + (systems.length > 0 && systems[0] == b ? 2 : 0);
-			return va - vb;
-		});
+		var want = LevelFeatures.draw(depth, lineup, concept);
 		var best:LevelGen = null;
 		var bestRate = -1.0e9;
-		var bestSys = -1;
-		for (i in 0...TRIES) {
-			var sys = forced >= 0 ? forced : order[i % n];
-			var g = new LevelGen(depth);
-			g.lineup = lineup;
-			g.want = want;
-			if (!g.build(sys))
-				continue;
-			var r = g.rate() - (systems.length > 0 && systems[0] == sys ? 1.5 : 0)
-				+ (th.systems.indexOf(LevelCompose.SYSTEMS[sys]) >= 0 ? 0.8 : 0);
-			if (r > bestRate) {
-				best = g;
-				bestRate = r;
-				bestSys = sys;
-			}
+		var bestPlan:LevelDesign.DPlan = null;
+		var tried:Array<LevelDesign.DPlan> = [];
+		// (the device of the idea of the level drawn: a level of kiwi mines without its green laser is not one)
+		function ownOk(g:LevelGen):Bool {
+			for (f in concept.want)
+				if (want.indexOf(f) >= 0 && !g.realized(f))
+					return false;
+			return true;
 		}
-		// (nothing right with these features: none, then fewer bads, the supporting ones going first)
+		// (the very same drawing as one of the last 12 levels)
+		function seen(g:LevelGen):Bool {
+			return recentLabels.indexOf(g.variant != "" ? g.variant : g.kind) >= 0;
+		}
+		// (two plans a round, three levels drawn with each: the one the most unlike the last levels wins; two rounds more
+		// when the device of the idea is still missing or the drawing is one of the last levels)
+		for (round in 0...5) {
+			if (round >= 3 && (best == null || (ownOk(best) && !seen(best))))
+				break;
+			for (k in 0...2) {
+				var p = LevelDesign.plan(depth, lineup, plans, forceKind, want, tried, concept, open);
+				tried.unshift(p);
+				for (i in 0...(TRIES >> 1)) {
+					var g = new LevelGen(depth);
+					g.lineup = lineup;
+					g.want = want;
+					g.concept = concept;
+					if (!g.build(p))
+						continue;
+					var r = g.rate() - 1.6 * LevelDesign.sameLook(LevelDesign.traits(g.m), recentTraits);
+					if (seen(g))
+						r -= 5;
+					if (r > bestRate) {
+						best = g;
+						bestRate = r;
+						bestPlan = p;
+					}
+				}
+			}
+			if (best != null && (forceKind != null || best.likeness() <= 0.62) && ownOk(best) && (forceKind != null || !seen(best)))
+				break;
+		}
+		// (nothing right with these features: the device of the idea only, then none; fewer bads, the supporting ones
+		// going first)
 		if (best == null)
 			for (i in 0...20) {
 				var g = new LevelGen(depth);
 				var drop = Std.int(i / 5);
-				g.lineup = {lead: lineup.lead, intro: lineup.intro, list: lineup.list.slice(0, Std.int(Math.max(2, lineup.list.length - drop)))};
-				g.want = [];
-				var sys = forced >= 0 ? forced : i % n;
-				if (g.build(sys)) {
+				// (the leapers stay: they fly, they need no place on a floor)
+				var walk = [for (id in lineup.list) if (id != Data.BAD_BALEINE) id];
+				var fly = [for (id in lineup.list) if (id == Data.BAD_BALEINE) id];
+				g.lineup = {lead: lineup.lead, intro: lineup.intro, list: walk.slice(0, Std.int(Math.max(2, walk.length - drop))).concat(fly)};
+				// (the device of the idea kept for the first tries)
+				g.want = i < 10 ? [for (f in want) if (concept.want.indexOf(f) >= 0) f] : [];
+				#if gentest
+				fails.set("relaxed", (fails.exists("relaxed") ? fails.get("relaxed") : 0) + 1);
+				#end
+				g.concept = concept;
+				var p = LevelDesign.plan(depth, g.lineup, plans, forceKind, g.want, null, concept, i < 10 ? open : false);
+				if (g.build(p) && (i >= 10 || forceKind != null || !seen(g))) {
 					best = g;
-					bestSys = sys;
+					bestPlan = p;
 					break;
 				}
 			}
@@ -225,14 +273,27 @@ class LevelGen {
 		recentMaps.unshift([for (c in best.m) [for (v in c) v > 0 ? 1 : 0]]);
 		if (recentMaps.length > 10)
 			recentMaps.pop();
-		lastStages = best.stageKinds;
-		lastSpots = best.spots;
-		if (bestSys >= 0) {
-			systems.unshift(bestSys);
-			if (systems.length > 4)
-				systems.pop();
+		if (bestPlan != null) {
+			plans.unshift(bestPlan);
+			if (plans.length > 12)
+				plans.pop();
 		}
-		lastKind = best.kind;
+		recentTraits.unshift(LevelDesign.traits(best.m));
+		if (recentTraits.length > 6)
+			recentTraits.pop();
+		lastTraits = recentTraits[0];
+		lastKind = best.variant != "" ? best.variant : best.kind;
+		recentLabels.unshift(lastKind);
+		if (recentLabels.length > 12)
+			recentLabels.pop();
+		lastConcept = concept.id;
+		lastOpen = best.open;
+		LevelConcept.remember(concept.id);
+		// (the idea of the level in its label: the test harness, the debug builds)
+		lastKind = concept.id + (best.open ? " (vide) " : " ") + lastKind;
+		#if gentest
+		lastDesign = best.designMap;
+		#end
 		lastSym = best.sym;
 		lastFit = best.roleFit;
 		lastWant = [for (f in best.want) if (best.realized(f)) f];
@@ -267,36 +328,43 @@ class LevelGen {
 		nest = null;
 		redJump = false;
 		roofs = [];
-		spots = [];
-		stageKinds = [];
+		designTeles = false;
+		close = null;
 		danger = [for (x in 0...W) [for (y in 0...H) false]];
 		busy = [for (x in 0...W) [for (y in 0...H) false]];
 	}
 
-	// a level built in a way (LevelCompose.SYSTEMS), its bads, its features: false when something is wrong in it
-	function build(sys:Int):Bool {
+	// a level drawn with a plan (LevelDesign), its bads, its features: false when something is wrong in it
+	function build(plan:LevelDesign.DPlan):Bool {
 		clear();
-		var lc = new LevelCompose(this);
-		lc.draw(sys);
-		for (s in lc.stages) {
-			stageKinds.push(s.kind);
-			for (p in s.spots)
-				spots.push(p);
-		}
+		var lc = new LevelDesign(this);
+		lc.draw(plan);
+		variant = lc.variant;
+		designGates = lc.gates;
+		#if gentest
+		designMap = [for (c in m) c.copy()];
+		#end
 		cleanup();
-		// Igor comes in falling from the top where he left the level above: a ground under every column
-		repairColumns();
-		if (openColumns() > 0)
-			return fail("open");
+		// Igor comes in falling from the top where he left the level above: a ground under every column (over the void,
+		// he is put over a ground: Game.safeEntry; the columns of the void stay open)
+		if (!open) {
+			repairColumns();
+			if (openColumns() > 0)
+				return fail("open");
+		}
+		openBase = openColumns();
 		if (!placeStart())
 			return fail("start");
 		computeReach();
 		if (!exitOk)
 			return fail("exit");
-		if (spots.length > 0)
-			reachSpots();
 		routes = new LevelRoutes(this);
 		feats = new LevelFeatures(this);
+		// the twin of the teleporter of the cellar, on the ways of Igor
+		if (close != null && !feats.closeTele())
+			return fail("close");
+		if (close != null)
+			noBads.push({y: close.y, x0: close.box.x0, x1: close.box.x1});
 		// the laser of the vault, the shelters of the strawberries, the saws, the teleporters, the nest
 		if (!feats.beforeBads())
 			return fail("before");
@@ -312,6 +380,7 @@ class LevelGen {
 		clearBadSpikes();
 		if (!pocketsOk())
 			return fail("pocket");
+		dropLooseSpikes();
 		if (!fieldsHeld())
 			return fail("loose");
 		if (!purposeful())
@@ -397,9 +466,14 @@ class LevelGen {
 	// ---------------------------------------------------------------- bads
 
 	function placeBads():Bool {
-		var list = lineup.list.copy();
-		// (crawlers on the walls deep in the well)
-		if (depth >= 8)
+		// (the leapers fly: placed in the open, not on a platform)
+		var flyers = 0;
+		for (id in lineup.list)
+			if (id == Data.BAD_BALEINE)
+				flyers++;
+		var list = [for (id in lineup.list) if (id != Data.BAD_BALEINE) id];
+		// (crawlers on the walls deep in the well; not in a level made for its spikes: they would crawl over them)
+		if (depth >= 8 && (concept == null || concept.id != "pics"))
 			for (i in 0...Std.int(Math.min(3, (depth - 5) / 5 * rhythm(depth) * LevelTheme.of(depth).crawlers)))
 				if (chance(0.6))
 					list.push(Data.BAD_CRAWLER);
@@ -413,7 +487,8 @@ class LevelGen {
 		for (attempt in 0...2) {
 			var lb = new LevelBads(this);
 			lb.hints = hints;
-			lb.place({lead: lineup.lead, intro: lineup.intro, list: list});
+			lb.spots = close != null ? close.spots : [];
+			lb.place({lead: lineup.lead == Data.BAD_BALEINE && list.length > 0 ? list[0] : lineup.lead, intro: lineup.intro, list: list});
 			roleFit = lb.fit;
 			leadFit = lb.leadFit;
 			guarded = lb.guardedN;
@@ -425,12 +500,17 @@ class LevelGen {
 				if (b.id == lineup.lead)
 					leads++;
 			}
-			// (all of them, but one when they are many; the leading kind there)
-			var n = lineup.list.length;
-			if (leads >= Std.int(Math.min(2, want)) && real >= n - (n >= 9 ? 2 : (n >= 5 ? 1 : 0)))
-				return true;
+			// (all of them, one missing at the most in a level of 6 or more; the leading kind there)
+			var n = lineup.list.length - flyers;
+			if (leads >= Std.int(Math.min(2, want)) && real >= n - (n >= 6 ? 1 : 0))
+				return placeFlyers(flyers);
 			// not enough places their ice can be kicked out from: like the original, a laser of black bombs on the way
 			// to them (they kill the bads) and the bads placed again
+			#if gentest
+			fails.set("short" + (n - real), (fails.exists("short" + (n - real)) ? fails.get("short" + (n - real)) : 0) + 1);
+			if (leads < Std.int(Math.min(2, want)))
+				fails.set("noLead", (fails.exists("noLead") ? fails.get("noLead") : 0) + 1);
+			#end
 			if (attempt > 0 || depth < 3 || killerLaser())
 				return false;
 			bads = before.copy();
@@ -444,6 +524,58 @@ class LevelGen {
 			routes.compute();
 		}
 		return false;
+	}
+
+	// the leapers in the open: the middle of the biggest empty place (nothing around them), far from the place
+	// where Igor lands at the start, apart from each other
+	function placeFlyers(n:Int):Bool {
+		var ly = py;
+		while (ly < H - 1 && !canStand(px, ly))
+			ly++;
+		for (k in 0...n) {
+			var best:GPt = null;
+			var bv = -1.0e9;
+			for (x in 2...W - 2)
+				for (y in 4...H - 4) {
+					var open = 0;
+					var near = false;
+					for (dx in -3...4)
+						for (dy in -3...4) {
+							var xx = x + dx;
+							var yy = y + dy;
+							if (!inb(xx, yy))
+								continue;
+							if (m[xx][yy] == 0)
+								open++;
+							else if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1)
+								near = true;
+						}
+					// (in the air, not too close to where Igor lands; better with nothing around it, far from him)
+					if (m[x][y] != 0 || busy[x][y])
+						continue;
+					var d = Math.abs(x - px) + Math.abs(y - ly);
+					if (d < 5)
+						continue;
+					var v = open + Math.min(14, d) * 0.5 + rnd(100) / 50 - (near ? 8 : 0) - Math.max(0, 8 - d) * 3;
+					for (b in bads)
+						if (b.id == Data.BAD_BALEINE)
+							v -= Math.max(0, 8 - Math.abs(b.x - x) - Math.abs(b.y - y)) * 2;
+					if (v > bv) {
+						bv = v;
+						best = {x: x, y: y};
+					}
+				}
+			if (best == null) {
+				#if gentest
+				fails.set("flyer", (fails.exists("flyer") ? fails.get("flyer") : 0) + 1);
+				#end
+				missing++;
+				continue;
+			}
+			bads.push({id: Data.BAD_BALEINE, x: best.x, y: best.y});
+			mark(best.x, best.y);
+		}
+		return true;
 	}
 
 	// a laser of black bombs on a passage of the ways of Igor (the bads of the pockets behind it first)
@@ -471,6 +603,9 @@ class LevelGen {
 			var v = routes != null && routes.dist != null && routes.dist[p.x * H + p.y] >= 0 ? Math.min(12, routes.dist[p.x * H + p.y]) * 0.3 : 0;
 			if (vault != null && p.x >= vault.x0 && p.x <= vault.x1 && p.y >= vault.top && p.y <= vault.y)
 				v += 5;
+			// (in the cellar reached by a teleporter)
+			if (inClose(p.x, p.y))
+				v += 4;
 			for (b in bads)
 				if (b.id == Data.BAD_SPEAR && Math.abs(b.x - p.x) <= 2 && Math.abs(b.y - p.y) <= 2)
 					v += 1.5;
@@ -505,8 +640,24 @@ class LevelGen {
 				reached++;
 		var r = 0.0;
 		// (the start of a game: Igor at mid-height, the levels built without room for it there lose)
-		if (depth == 0 && py < LevelCompose.START_Y0)
+		if (depth == 0 && py < LevelDesign.START_Y0)
 			r -= 30;
+		// (the first levels, "très faciles": few platforms, the light drawings win, a little more each level up to level
+		// 8: the ground from 10 % of the screen, the platforms from 5)
+		// (not the first levels drawn in the style of the original (0-5, mFew): their floors are what they are)
+		if (depth < 10 && depth > LevelDesign.EASY_DEPTH) {
+			var n = 0;
+			for (x in 0...W)
+				for (y in 0...H)
+					if (m[x][y] > 0)
+						n++;
+			r -= Math.max(0, n / (W * H) - (0.10 + 0.012 * depth)) * 80;
+			var plats = 0;
+			for (s in segs)
+				if (s.x1 - s.x0 >= 1 && s.y < H - 2)
+					plats++;
+			r -= 2.5 * Math.max(0, plats - (5 + 0.5 * depth));
+		}
 		r += 4.0 * reached / Math.max(1, segs.length);
 		if (segs.length >= 7 && segs.length <= 24)
 			r += 1;
@@ -535,12 +686,14 @@ class LevelGen {
 		r += 2.0 * entryCount() / W;
 		// better without pockets (their bads killed only with the bombs of a black laser), but in the vault; a laser of
 		// black bombs for them is a last resort
-		r -= pockets() * (vault != null ? 0.1 : (killerLaser() ? 0.4 : 1.0));
-		if (vault == null && hasLaser(-2))
+		r -= pockets() * (vault != null || close != null ? 0.1 : (killerLaser() ? 0.4 : 1.0));
+		if (vault == null && close == null && hasLaser(-2))
 			r -= 2.5;
-		// the features drawn for the level there
-		for (f in want)
-			r += realized(f) ? 2.5 : -1.5;
+		// the features drawn for the level there (the device of the idea of the level above all)
+		for (f in want) {
+			var own = concept != null && concept.want.indexOf(f) >= 0;
+			r += realized(f) ? (own ? 6.0 : 2.5) : (own ? -6.0 : -1.5);
+		}
 		// the bads apart from each other
 		var bl = [for (b in bads) if (b.id != Data.BAD_SPEAR) b];
 		var sum = 0.0;
@@ -563,19 +716,9 @@ class LevelGen {
 		// the strawberries out of the bombs from above
 		for (e in strawExposure())
 			r += e == 0 ? 1.2 : -Math.min(2.0, e * 0.3);
-		// the bads of the stages in their places
-		if (spots.length > 0) {
-			var on = 0;
-			for (p in spots)
-				for (b in bads)
-					if (b.id == p.id && b.x == p.x && b.y == p.y) {
-						on++;
-						break;
-					}
-			r += 2.0 * on / spots.length;
-		}
 		// not like the last levels (the player must never think he has seen it before)
-		r -= 8 * Math.max(0, likeness() - 0.3);
+		var lk0 = likeness();
+		r -= 8 * Math.max(0, lk0 - 0.3) + 20 * Math.max(0, lk0 - 0.5);
 		// the look of a level made by hand (measured on the original, gen/look.py): the ends of the platforms lined up
 		// with other ends, not too many long floors, none over another one (the way down zigzagging), big pieces
 		var lk = looks();
@@ -941,8 +1084,8 @@ class LevelGen {
 		return n;
 	}
 
-	// columns without ground: a platform of a floor goes on over them (from the top floors), the nearest end of a
-	// platform goes on to them, or a shelf
+	// columns still without ground (LevelDesign.coverColumns puts ledges over them): a shelf of 3 cases on a row of the
+	// floors, free around (never a platform going on over the column: that would shut a way down)
 	function repairColumns() {
 		var rows = floors == null ? [] : floors.copy();
 		if (rows.length > 1)
@@ -953,50 +1096,6 @@ class LevelGen {
 				y++;
 			if (y < H)
 				continue;
-			var done = false;
-			for (fy in rows) {
-				if (fy < 3 || fy >= H || m[x][fy] != 0 || m[x][fy - 1] > 0)
-					continue;
-				if ((x > 0 && m[x - 1][fy] > 0) || (x + 1 < W && m[x + 1][fy] > 0)) {
-					put(x, fy, G);
-					done = true;
-					break;
-				}
-			}
-			if (done)
-				continue;
-			// (the nearest end of a platform 2 or 3 cases away goes on to it: no small piece alone in the air)
-			var bestY = -1;
-			var bestDir = 0;
-			var bestD = 99;
-			for (y in 3...H - 1)
-				for (d in 2...4)
-					for (dir in [-1, 1]) {
-						var ex = x + dir * d;
-						if (ex < 0 || ex >= W || m[ex][y] <= 0 || m[ex][y - 1] > 0)
-							continue;
-						var ok = true;
-						for (k in 0...d) {
-							var cx = x + dir * k;
-							if (m[cx][y] != 0 || m[cx][y - 1] != 0 || m[cx][y - 2] != 0 || (y + 1 < H && m[cx][y + 1] > 0))
-								ok = false;
-						}
-						var v = d * 2 + (rows.indexOf(y) >= 0 ? 0 : 1);
-						if (ok && v < bestD) {
-							bestD = v;
-							bestY = y;
-							bestDir = dir;
-						}
-					}
-			if (bestY >= 0) {
-				var ex = x;
-				while (m[ex][bestY] <= 0) {
-					put(ex, bestY, G);
-					ex += bestDir;
-				}
-				continue;
-			}
-			// (else a shelf of 3 cases on a row of the floors, free around)
 			for (fy in rows) {
 				if (fy < 3 || fy >= H - 1)
 					continue;
@@ -1008,17 +1107,7 @@ class LevelGen {
 							ok = false;
 				if (ok) {
 					hl(x0, x0 + 2, fy, G);
-					done = true;
 					break;
-				}
-			}
-			if (!done && rows.length > 0) {
-				var fy = rows[Std.int(rows.length / 2)];
-				if (fy >= 3 && m[x][fy] == 0) {
-					put(x, fy, G);
-					var x2 = x + 1 < W ? x + 1 : x - 1;
-					if (m[x2][fy] == 0)
-						put(x2, fy, G);
 				}
 			}
 		}
@@ -1052,9 +1141,9 @@ class LevelGen {
 		var best:GPt = null;
 		var bestV = 1.0e9;
 		if (depth == 0)
-			for (y in LevelCompose.START_Y0...LevelCompose.START_Y1)
+			for (y in LevelDesign.START_Y0...LevelDesign.START_Y1)
 				for (x in 2...W - 2) {
-					if (!canStand(x, y) || m[x][y] < 0)
+					if (!canStand(x, y) || m[x][y] < 0 || inClose(x, y))
 						continue;
 					var v = Math.abs(x - 8.5) + Math.abs(y - 8.5) * 1.5 + rnd(3);
 					if (v < bestV) {
@@ -1065,7 +1154,7 @@ class LevelGen {
 		if (best == null)
 			for (y in 1...6)
 				for (x in 1...W - 1) {
-					if (!canStand(x, y) || m[x][y] < 0)
+					if (!canStand(x, y) || m[x][y] < 0 || inClose(x, y))
 						continue;
 					var v = Math.abs(x - 8.5) + y * 1.5 + rnd(3);
 					if (v < bestV) {
@@ -1076,6 +1165,8 @@ class LevelGen {
 		if (best == null) {
 			// in the air over a platform: he falls on it
 			for (x in [8, 9, 7, 10, 6, 11, 5, 12]) {
+				if (inClose(x, 1))
+					continue;
 				var y = 1;
 				while (y < H - 1 && !canStand(x, y))
 					y++;
@@ -1617,56 +1708,6 @@ class LevelGen {
 		return n;
 	}
 
-	// the places of the stages (LevelCompose) within the reach of Igor: a step (a ledge of 2 or 3 cases) between the
-	// ground he reaches and a place out of his reach, when one fits (nothing around it, the place reached then)
-	function reachSpots() {
-		// (Igor on the platform of the place: he pushes the ice of its bad out from behind it)
-		function near(x:Int, y:Int):Bool {
-			if (!canStand(x, y))
-				return false;
-			var a = x;
-			while (a > 0 && canStand(a - 1, y))
-				a--;
-			var b = x;
-			while (b < W - 1 && canStand(b + 1, y))
-				b++;
-			for (k in a...b + 1)
-				if (reach[k][y])
-					return true;
-			return false;
-		}
-		for (p in spots) {
-			if (near(p.x, p.y))
-				continue;
-			var done = false;
-			for (t in 0...24) {
-				var len = range(2, 3);
-				var sy = p.y + range(1, 3);
-				var sx = p.x + range(-4, 4 - len + 1);
-				if (sy >= H - 1 || sx < 0 || sx + len > W)
-					continue;
-				var ok = true;
-				for (x in sx - 1...sx + len + 1)
-					for (y in sy - 2...sy + 2)
-						if (inb(x, y) && m[x][y] != 0)
-							ok = false;
-				if (!ok)
-					continue;
-				for (x in sx...sx + len)
-					m[x][sy] = G;
-				computeReach();
-				if (near(p.x, p.y) && exitOk) {
-					done = true;
-					break;
-				}
-				for (x in sx...sx + len)
-					m[x][sy] = 0;
-			}
-			if (!done)
-				computeReach();
-		}
-	}
-
 	// the ground of the level against the ground of each of the last levels: the share of the cases they have in common
 	// (the best of the shifts of a case and of the mirror), the most like of them
 	function likeness():Float {
@@ -1744,9 +1785,17 @@ class LevelGen {
 	// jumps are longer)
 	function addSpikes(n:Int) {
 		computeReach();
-		var zone = badZone();
+		var own = fruitZone();
+		// (nor where Igor lands at the start, nor under the platform he lands on: always there, they would be seen again
+		// and again; nor in the room shut)
+		var ly = py;
+		while (ly < H - 1 && !canStand(px, ly))
+			ly++;
+		var home = segmentOf(px, ly);
 		function safe(x:Int, y:Int):Bool {
-			return farFromBads(zone, x, y);
+			if (home != null && x >= home.x0 - 1 && x <= home.x1 + 1 && y >= home.y - 2 && y <= home.y + 3)
+				return false;
+			return !own[x][y] && !(Math.abs(x - px) <= 2 && y >= ly - 2 && y <= ly + 1) && !inClose(x, y);
 		}
 		var before = 0;
 		for (s in segments())
@@ -1763,14 +1812,20 @@ class LevelGen {
 			for (x in 0...W) {
 				if (m[x][y] != 0 || busy[x][y] || !safe(x, y))
 					continue;
+				// (or over a gap of the floor under it: Igor jumping up through the gap from the floor lower hits them)
 				if (m[x][y - 1] > 0 && m[x][y + 1] == 0 && y + 3 < H && m[x][y + 2] == 0
-					&& (m[x][y + 3] > 0 || (y + 4 < H && m[x][y + 3] == 0 && m[x][y + 4] > 0)))
+					&& (m[x][y + 3] > 0 || (y + 4 < H && m[x][y + 3] == 0 && m[x][y + 4] > 0)
+						|| (y + 5 < H && m[x][y + 3] == 0 && m[x][y + 4] == 0 && m[x][y + 5] > 0)))
 					ceils.push({x: x, y: y});
 				else if (depth >= 4 && m[x][y - 1] <= 0 && m[x][y + 1] <= 0 && (wallAt(x - 1, y) || wallAt(x + 1, y))
 					&& reachedNear(x, y) && Math.abs(y - py) > 3)
 					walls.push({x: x, y: y});
 			}
+		// (the tops of the pillars and of the short platforms Igor lands on, where no fruit goes: all spikes)
+		var tops = [for (s in segs) if (s.x1 - s.x0 + 1 <= 4 && s.y > 2 && s.y < H - 2 && segReached(s)
+			&& [for (x in s.x0...s.x1 + 1) if (!safe(x, s.y) || busy[x][s.y] || m[x][s.y] != 0) x].length == 0) s];
 		#if gentest
+		spikeStats.set("tops", (spikeStats.exists("tops") ? spikeStats.get("tops") : 0) + tops.length);
 		spikeStats.set("calls", (spikeStats.exists("calls") ? spikeStats.get("calls") : 0) + 1);
 		spikeStats.set("floorsC", (spikeStats.exists("floorsC") ? spikeStats.get("floorsC") : 0) + floorsC.length);
 		spikeStats.set("ceils", (spikeStats.exists("ceils") ? spikeStats.get("ceils") : 0) + ceils.length);
@@ -1779,8 +1834,13 @@ class LevelGen {
 		while (placed.length < n && tries < 20) {
 			tries++;
 			var added:Array<GPt> = [];
-			var what = draw([floorsC.length > 0 ? 4 : 0, ceils.length > 0 ? 4 : 0, walls.length > 0 && depth >= 6 ? 3 : 0]);
-			if (floorsC.length + ceils.length + walls.length == 0)
+			var what = draw([
+				floorsC.length > 0 ? 4 : 0,
+				ceils.length > 0 ? 4 : 0,
+				walls.length > 0 && depth >= 6 ? 3 : 0,
+				tops.length > 0 ? 3 : 0
+			]);
+			if (floorsC.length + ceils.length + walls.length + tops.length == 0 || what < 0)
 				break;
 			if (what == 0) {
 				// a strip of spikes in a long platform (2 to 4 of them: a row, like in the original), where Igor goes
@@ -1797,22 +1857,31 @@ class LevelGen {
 				// spikes under a ceiling, over a way 2 or 3 cases lower
 				// (the whole underside of the ceiling, or 3 or 4 cases of it: a row, not spikes here and there)
 				var p = pickBy(ceils, function(p) return 0.3 + traffic(p.x, p.y + 1, p.x, p.y + 2));
+				ceils.remove(p);
+				// (along the ceiling, as far as the cases are safe: 2 to 4 of them)
+				function free(x:Int):Bool
+					return m[x][p.y - 1] > 0 && m[x][p.y] == 0 && !busy[x][p.y] && safe(x, p.y);
 				var a = p.x;
 				var b = p.x;
-				while (a > 0 && m[a - 1][p.y - 1] > 0 && m[a - 1][p.y] == 0)
+				while (a > 0 && free(a - 1))
 					a--;
-				while (b < W - 1 && m[b + 1][p.y - 1] > 0 && m[b + 1][p.y] == 0)
+				while (b < W - 1 && free(b + 1))
 					b++;
-				if (b - a + 1 > 5) {
+				if (b - a + 1 > 4) {
 					var k = range(3, 4);
 					a = Std.int(Math.max(a, Math.min(p.x - 1, b - k + 1)));
 					b = a + k - 1;
 				}
 				for (x in a...b + 1)
-					if (!busy[x][p.y] && safe(x, p.y))
-						added.push({x: x, y: p.y});
-				if (added.length < 2 || added.length < b - a + 1)
+					added.push({x: x, y: p.y});
+				if (added.length < 2)
 					added = [];
+			} else if (what == 3) {
+				// the top of a pillar or of a short platform where Igor lands: spikes all over it
+				var s = pickBy(tops, function(s) return 0.3 + traffic(s.x0 - 1, s.y - 2, s.x1 + 1, s.y));
+				tops.remove(s);
+				for (x in s.x0...s.x1 + 1)
+					added.push({x: x, y: s.y});
 			} else {
 				// spikes on a wall, in the air where Igor jumps (two over each other when the wall is free there)
 				var p = pickBy(walls, function(p) return 0.3 + traffic(p.x - 1, p.y - 1, p.x + 1, p.y + 1));
@@ -1825,13 +1894,30 @@ class LevelGen {
 						break;
 					}
 			}
-			if (added.length == 0)
+			if (added.length == 0) {
+				#if gentest
+				spikeStats.set("empty" + what, (spikeStats.exists("empty" + what) ? spikeStats.get("empty" + what) : 0) + 1);
+				#end
 				continue;
-			var all = [];
+			}
+			var all:Array<GPt> = [];
+			function put(x:Int, y:Int) {
+				if (busy[x][y] || spikeAt(x, y))
+					return;
+				for (p in all)
+					if (p.x == x && p.y == y)
+						return;
+				all.push({x: x, y: y});
+			}
 			for (a in added) {
-				all.push(a);
-				if (sym && W - 1 - a.x != a.x && safe(W - 1 - a.x, a.y) && !busy[W - 1 - a.x][a.y])
-					all.push({x: W - 1 - a.x, y: a.y});
+				put(a.x, a.y);
+				// (the mirrored spike only on the mirrored ground: a level drawn mirrored is not always so everywhere;
+				// players saw the mirror of spikes under a ceiling in the air on the other side)
+				var side = spikeSide(a.x, a.y);
+				var mside = spikeSide(W - 1 - a.x, a.y);
+				if (sym && W - 1 - a.x != a.x && safe(W - 1 - a.x, a.y) && !busy[W - 1 - a.x][a.y]
+					&& side != 0 && mside == (side == 2 ? 4 : (side == 4 ? 2 : side)))
+					put(W - 1 - a.x, a.y);
 			}
 			for (a in all)
 				setDanger(a, true);
@@ -1840,7 +1926,11 @@ class LevelGen {
 			for (s in segments())
 				if (segReached(s))
 					after++;
-			if (!exitOk || after < before - 1 || !startOk() || openColumns() > 0) {
+			if (!exitOk || after < before - 1 || !startOk() || openColumns() > openBase) {
+				#if gentest
+				var why = !exitOk ? "exit" : (after < before - 1 ? "segs" : (!startOk() ? "start" : "open"));
+				spikeStats.set(why + what, (spikeStats.exists(why + what) ? spikeStats.get(why + what) : 0) + 1);
+				#end
 				for (a in all)
 					setDanger(a, false);
 				continue;
@@ -1921,7 +2011,7 @@ class LevelGen {
 		var segs = segments();
 		// (not against the sides of the screen: the saws would climb them)
 		var c = [for (s in segs) if (s.x1 - s.x0 + 1 >= 2 && s.x1 - s.x0 + 1 <= 6 && blockSize(s) <= 8 && !blockOnSide
-			&& !blockOnRoof && Math.abs(s.y - py) + Math.abs(s.x0 - px) > 6 && !isNoBad(s) && !stageOn(s)) s];
+			&& !blockOnRoof && Math.abs(s.y - py) + Math.abs(s.x0 - px) > 6 && !isNoBad(s)) s];
 		if (c.length == 0)
 			return;
 		// (the block Igor passes by the most: a saw going around it guards his way)
@@ -1953,14 +2043,6 @@ class LevelGen {
 			bads.push({id: Data.BAD_SAW, x: W - 1 - x, y: s.y});
 			mark(W - 1 - x, s.y);
 		}
-	}
-
-	// a platform where a stage of LevelCompose puts a bad
-	function stageOn(s:GSeg):Bool {
-		for (p in spots)
-			if (p.y == s.y && p.x >= s.x0 && p.x <= s.x1)
-				return true;
-		return false;
 	}
 
 	var blockOnSide:Bool = false;
@@ -2116,25 +2198,224 @@ class LevelGen {
 		}
 	}
 
-	// a case where spikes do not touch a bad going its ways: not on them, nor next to them, nor 2 rows over them (the
-	// bads hop: their hits are their boxes)
-	function farFromBads(zone:Array<Array<Bool>>, x:Int, y:Int):Bool {
-		for (dx in -1...2)
-			for (dy in -1...3)
-				if (inb(x + dx, y + dy) && zone[x + dx][y + dy])
-					return false;
-		return true;
+	// what a fruit does by itself (its class: Fruits.hx, Bads2.hx): falls off the ends of its platform, jumps up 3 rows
+	// onto the platform over it, jumps down through a floor of one case, jumps over a gap of 1 or 2 cases, climbs a wall
+	// of so many cases, jumps in place (the attack of the pineapple)
+	static function moves(id:Int):{fall:Bool, up:Bool, down:Bool, across:Bool, climb:Int, hop:Bool} {
+		return switch (id) {
+			case Data.BAD_CERISE, Data.BAD_FRAISE: {fall: false, up: false, down: false, across: false, climb: 0, hop: false};
+			case Data.BAD_ORANGE, Data.BAD_CITRON: {fall: false, up: false, down: false, across: true, climb: 0, hop: false};
+			case Data.BAD_ANANAS: {fall: false, up: false, down: false, across: true, climb: 0, hop: true};
+			case Data.BAD_POIRE: {fall: false, up: false, down: false, across: true, climb: 1, hop: false};
+			case Data.BAD_POMME: {fall: true, up: true, down: false, across: true, climb: 1, hop: false};
+			case Data.BAD_ABRICOT, Data.BAD_ABRICOT2: {fall: true, up: true, down: false, across: true, climb: 3, hop: false};
+			case Data.BAD_KIWI, Data.BAD_BOMBE: {fall: false, up: true, down: true, across: true, climb: 3, hop: false};
+			case Data.BAD_BANANE: {fall: true, up: true, down: true, across: true, climb: 4, hop: false};
+			// (the litchis, the raspberry)
+			default: {fall: true, up: true, down: true, across: true, climb: 3, hop: false};
+		};
 	}
 
-	// the spikes on the ways of the bads (where they go by themselves, or next to it) go: they would kill them all one
-	// after the other (the hard levels of the original keep the ones next to the ways: the bads die there sometimes)
-	function clearBadSpikes(?strict:Bool = true) {
-		var zone = badZone();
+	// where the fruits go by themselves, each with its own moves: spikes there would kill them one after the other (the
+	// cherry and the strawberry stay on their platform, the orange, the lemon, the pear and the pineapple only jump over
+	// the gaps of their row, all fall off a spot of one case; the others go everywhere, the raspberry even bursts and
+	// comes back together far away). The cases their feet go through: their platforms and their ends (they turn back
+	// there, half over the gap), over the gaps they jump, the columns they fall or jump down through, the cases under the
+	// platforms they jump up to; then their boxes around them. The leapers and the crawlers go through all the air they
+	// reach, the saws around their grounds
+	public function fruitZone():Array<Array<Bool>> {
+		var zone = [for (x in 0...W) [for (y in 0...H) false]];
+		function stand(x:Int, y:Int):Bool {
+			return x >= 0 && x < W && y >= 0 && y + 1 < H && m[x][y] <= 0 && m[x][y + 1] > 0;
+		}
+		// (the first ground under a case, -1 in the void or in a ground)
+		function ground(x:Int, y:Int):Int {
+			if (x < 0 || x >= W)
+				return -1;
+			while (y + 1 < H && !stand(x, y)) {
+				if (y >= 0 && m[x][y] > 0)
+					return -1;
+				y++;
+			}
+			return stand(x, y) ? y : -1;
+		}
+		for (b in bads) {
+			if (b.id == Data.BAD_SPEAR)
+				continue;
+			if (b.id == Data.BAD_SAW) {
+				crawlZone(zone, b.x, b.y);
+				continue;
+			}
+			// (the leapers fly through all the air they reach; the crawlers crawl on every ground the air takes them to,
+			// along the sides of the screen from one to the other: all of it too)
+			if (b.id == Data.BAD_BALEINE || b.id == Data.BAD_CRAWLER) {
+				var air = [for (x in 0...W) [for (y in 0...H) false]];
+				var st:Array<GPt> = [for (dx in -1...2) for (dy in -1...2) {x: b.x + dx, y: b.y + dy}];
+				while (st.length > 0) {
+					var p = st.pop();
+					if (!inb(p.x, p.y) || air[p.x][p.y] || m[p.x][p.y] > 0)
+						continue;
+					air[p.x][p.y] = true;
+					zone[p.x][p.y] = true;
+					for (d in [[1, 0], [-1, 0], [0, 1], [0, -1]])
+						st.push({x: p.x + d[0], y: p.y + d[1]});
+				}
+				continue;
+			}
+			var mv = moves(b.id);
+			// (the cases its feet go through, then its box around them: get_width / get_height of its picture, measured
+			// in the game: the bomb and the pineapple 2 cases aside and 2 over, the others 1)
+			var feet = [for (x in 0...W) [for (y in 0...H) false]];
+			function pass(x:Int, y:Int) {
+				if (inb(x, y))
+					feet[x][y] = true;
+			}
+			var seen = [for (x in 0...W) [for (y in 0...H) false]];
+			var q:Array<GPt> = [];
+			function add(x:Int, y:Int) {
+				if (stand(x, y) && !seen[x][y]) {
+					seen[x][y] = true;
+					q.push({x: x, y: y});
+				}
+			}
+			var y0 = ground(b.x, b.y);
+			if (y0 < 0)
+				continue;
+			for (k in b.y...y0)
+				pass(b.x, k);
+			add(b.x, y0);
+			// (the raspberry bursts by itself and comes back together on any platform of 2 cases or more: Framboise.onShoot)
+			if (b.id == Data.BAD_FRAMBOISE)
+				for (x in 0...W)
+					for (y in 0...H)
+						if (stand(x, y) && (stand(x - 1, y) || stand(x + 1, y)))
+							add(x, y);
+			while (q.length > 0) {
+				var p = q.pop();
+				pass(p.x, p.y);
+				pass(p.x, p.y - 1);
+				if (mv.hop)
+					for (k in 2...4)
+						pass(p.x, p.y - k);
+				// (a spot of one case: whatever it is, it does not stay there and falls off it, Walker.onFall)
+				var small = true;
+				for (d in [-1, 1])
+					if (p.x + d >= 0 && p.x + d < W && m[p.x + d][p.y + 1] > 0 && m[p.x + d][p.y] <= 0)
+						small = false;
+				for (d in [-1, 1]) {
+					var nx = p.x + d;
+					if (nx < 0 || nx >= W)
+						continue;
+					if (m[nx][p.y] > 0) {
+						// a wall: climbed when it is low enough, with room over the fruit (World.parseIA: IA_CLIMB)
+						if (mv.climb > 0) {
+							var h = 0;
+							while (p.y - h >= 0 && m[nx][p.y - h] > 0)
+								h++;
+							var room = 0;
+							while (room < h && p.y - room - 1 >= 0 && m[p.x][p.y - room - 1] <= 0)
+								room++;
+							if (h <= mv.climb && room >= h && stand(nx, p.y - h)) {
+								for (k in 1...h + 2)
+									pass(p.x, p.y - k);
+								add(nx, p.y - h);
+							}
+						}
+						continue;
+					}
+					if (stand(nx, p.y)) {
+						add(nx, p.y);
+						continue;
+					}
+					// the end of its platform: it turns back there, jumps over the gap, falls, or climbs a step over the gap
+					pass(nx, p.y);
+					pass(nx, p.y - 1);
+					if (mv.across)
+						for (k in 2...4) {
+							var lx = p.x + k * d;
+							if (lx < 0 || lx >= W || m[lx][p.y] > 0)
+								break;
+							if (stand(lx, p.y)) {
+								for (j in 1...k)
+									for (dy in 0...3)
+										pass(p.x + j * d, p.y - dy);
+								add(lx, p.y);
+								break;
+							}
+						}
+					if (mv.fall || small) {
+						var ly = ground(nx, p.y);
+						if (ly >= 0) {
+							// (it falls from the edge: its body over both columns)
+							for (k in p.y...ly + 1) {
+								pass(nx, k);
+								pass(p.x, k);
+							}
+							add(nx, ly);
+						}
+					}
+					// (a step over the gap: the end of a platform right over the gap, the air over the fruit)
+					if (mv.climb > 0)
+						for (h in 2...mv.climb + 1) {
+							var free = true;
+							for (k in 0...h - 1)
+								if (m[nx][p.y - k] > 0)
+									free = false;
+							if (free && p.y - h >= 0 && stand(nx, p.y - h) && m[p.x][p.y - h + 1] <= 0 && m[p.x][p.y - h] <= 0) {
+								for (k in 1...h + 1)
+									pass(p.x, p.y - k);
+								pass(nx, p.y - h);
+								add(nx, p.y - h);
+								break;
+							}
+							if (!free)
+								break;
+						}
+				}
+				// up 3 rows through the platform over it, down through its floor of one case
+				if (mv.up && p.y >= 3 && m[p.x][p.y - 2] > 0 && m[p.x][p.y - 3] <= 0) {
+					for (k in 1...5)
+						pass(p.x, p.y - k);
+					pass(p.x - 1, p.y - 1);
+					pass(p.x + 1, p.y - 1);
+					add(p.x, p.y - 3);
+				}
+				if (mv.down && p.y + 2 < H && m[p.x][p.y + 2] <= 0) {
+					var ly = ground(p.x, p.y + 2);
+					if (ly >= 0) {
+						for (k in p.y + 2...ly + 1)
+							for (dx in -1...2)
+								pass(p.x + dx, k);
+						add(p.x, ly);
+					}
+				}
+			}
+			var big = b.id == Data.BAD_BOMBE || b.id == Data.BAD_ANANAS;
+			var bx = big ? 2 : 1;
+			var by = big ? 2 : 1;
+			for (x in 0...W)
+				for (y in 0...H)
+					if (feet[x][y])
+						for (dx in -bx...bx + 1)
+							for (dy in 0...by + 1)
+								if (inb(x + dx, y - dy))
+									zone[x + dx][y - dy] = true;
+		}
+		return zone;
+	}
+
+	// the cellar (LevelDesign.cellar): a case of it, of its walls, of its roof
+	public function inClose(x:Int, y:Int):Bool {
+		return close != null && x >= close.box.x0 && x <= close.box.x1 && y >= close.box.y0 && y <= close.box.y1;
+	}
+
+	// the spikes on the ways of the fruits (where they go by themselves) go: they would kill them all one after the other
+	function clearBadSpikes() {
+		var zone = fruitZone();
 		var keep = [];
 		for (b in bads) {
 			if (b.id == Data.BAD_SPEAR) {
-				var near = strict ? !farFromBads(zone, b.x, b.y) : zone[b.x][b.y];
-				if (near) {
+				if (zone[b.x][b.y]) {
 					setDanger({x: b.x, y: b.y}, false);
 					continue;
 				}
@@ -2214,6 +2495,31 @@ class LevelGen {
 		return addKillerLaser() && killerLaser();
 	}
 
+	// the side of the ground a spike at (x, y) stands on, as Spear.initBad sees it: 1 under it, 3 over it, 2 on its left,
+	// 4 on its right, 0 none
+	function spikeSide(x:Int, y:Int):Int {
+		return m0(x, y + 1) ? 1 : (m0(x, y - 1) ? 3 : (m0(x - 1, y) ? 2 : (m0(x + 1, y) ? 4 : 0)));
+	}
+
+	// a spike on a side of this ground case
+	function spikeBy(x:Int, y:Int):Bool {
+		for (b in bads)
+			if (b.id == Data.BAD_SPEAR && Math.abs(b.x - x) + Math.abs(b.y - y) == 1)
+				return true;
+		return false;
+	}
+
+	// a spike stands on a side of a ground (Spear.initBad: else it is drawn pointing up in the air): none left where a
+	// ground was cut after it (players saw spikes floating in the air)
+	function dropLooseSpikes() {
+		bads = [for (b in bads) if (b.id != Data.BAD_SPEAR || m0(b.x, b.y + 1) || m0(b.x, b.y - 1) || m0(b.x - 1, b.y)
+			|| m0(b.x + 1, b.y)) b];
+	}
+
+	inline function m0(x:Int, y:Int):Bool {
+		return inb(x, y) && m[x][y] > 0;
+	}
+
 	function repairPockets() {
 		var zone = badZone(true);
 		for (pass in 0...4) {
@@ -2224,15 +2530,16 @@ class LevelGen {
 				found = true;
 				var fy = sg.y + 1;
 				for (x in [sg.x0, sg.x1]) {
-					// a floor one case thick, nobody standing there
-					if (fy >= H || m[x][fy] <= 0 || (fy + 1 < H && m[x][fy + 1] > 0) || busy[x][sg.y])
+					// a floor one case thick, nobody standing there (not the roof of the cellar), no spike on it
+					if (fy >= H || m[x][fy] <= 0 || (fy + 1 < H && m[x][fy + 1] > 0) || busy[x][sg.y] || inClose(x, fy)
+						|| spikeBy(x, fy))
 						continue;
 					var v = m[x][fy];
 					m[x][fy] = 0;
 					if (sym && W - 1 - x != x && m[W - 1 - x][fy] == v)
 						m[W - 1 - x][fy] = 0;
 					computeReach();
-					if (exitOk && startOk() && openColumns() == 0 && iceEscapes({y: sg.y, x0: sg.x0, x1: sg.x1}))
+					if (exitOk && startOk() && openColumns() <= openBase && iceEscapes({y: sg.y, x0: sg.x0, x1: sg.x1}))
 						break;
 					m[x][fy] = v;
 					if (sym && W - 1 - x != x && m[W - 1 - x][fy] == 0)
@@ -2439,7 +2746,7 @@ class LevelGen {
 				ok = exitOk || openAtEnd.length > 0;
 				if (ok)
 					for (b in bads) {
-						if (b.id == Data.BAD_SPEAR || b.id == Data.BAD_SAW)
+						if (b.id == Data.BAD_SPEAR || b.id == Data.BAD_SAW || b.id == Data.BAD_BALEINE)
 							continue;
 						var near = false;
 						for (dx in -2...3)

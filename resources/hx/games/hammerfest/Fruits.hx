@@ -22,6 +22,7 @@ class Fruits {
 			case Data.BAD_LITCHI_WEAK: new LitchiWeak();
 			case Data.BAD_ANANAS: new Bads2.Ananas();
 			case Data.BAD_FRAMBOISE: new Framboise();
+			case Data.BAD_BALEINE: new Baleine();
 			case Data.BAD_CRAWLER: new Bads2.Crawler();
 			case Data.BAD_SAW: new Bads2.Saw();
 			case Data.BAD_SPEAR: new Bads2.Spear();
@@ -603,6 +604,8 @@ class Litchi extends Jumper {
 		if (child != null)
 			return;
 		child = cast Fruits.attachBad(game, Data.BAD_LITCHI_WEAK, x, y - Data.CASE_HEIGHT);
+		// (the litchi without its shell takes its place in the order of the big crystal)
+		game.replaceInOrder(this, child);
 		child.angerMore();
 		child.updateSpeed();
 		child.halt();
@@ -651,6 +654,165 @@ class LitchiWeak extends Jumper {
 	}
 }
 
+// hammer/entity/bad/Flyer.mt: a bad flying at 45 degrees, bouncing off the walls, the floors, the ceilings and the
+// bottom of the level; frozen or knocked out, it falls like the others and flies again when it melts or wakes up
+class Flyer extends Bad {
+	var xSpeed:Float;
+	var ySpeed:Float;
+	var fl_fly:Bool;
+	var fl_intercept:Bool; // frozen in the air
+	var speed:Float;
+	var dir:Int;
+
+	public function new(animBase:String) {
+		super(animBase);
+		speed = 4;
+		angerFactor = 0.5;
+	}
+
+	override public function init(g:Game) {
+		super.init(g);
+		xSpeed = Math.cos(Math.PI * 0.25) * speed;
+		ySpeed = Math.sin(Math.PI * 0.25) * speed;
+		dir = Cs.rnd(2) * 2 - 1;
+		fly();
+	}
+
+	function fly() {
+		if (!isHealthy())
+			return;
+		if (anger > 0)
+			playAnim(Data.ANIM_BAD_ANGER);
+		else
+			playAnim(Data.ANIM_BAD_WALK);
+		dx = dir * xSpeed * speedFactor;
+		dy = -ySpeed * speedFactor;
+		fl_fly = true;
+		fl_intercept = false;
+		fl_gravity = false;
+		fl_friction = false;
+		fl_hitCeil = true;
+	}
+
+	function land() {
+		fl_fly = false;
+		fl_gravity = true;
+		fl_friction = true;
+		fl_hitCeil = false;
+	}
+
+	override public function killHit(dx:Null<Float>) {
+		super.killHit(dx);
+		land();
+	}
+
+	override public function infix() {
+		super.infix();
+		if (fl_fly && y >= Data.GAME_HEIGHT) {
+			y = Data.GAME_HEIGHT;
+			dy = -ySpeed * speedFactor;
+		}
+	}
+
+	override public function postfix() {
+		super.postfix();
+		if (fl_fly)
+			fl_friction = false;
+	}
+
+	override public function playAnim(a:AnimDef) {
+		if (a.id != Data.ANIM_BAD_JUMP.id)
+			super.playAnim(a);
+	}
+
+	override public function updateSpeed() {
+		super.updateSpeed();
+		if (fl_fly) {
+			dx = dir * xSpeed * speedFactor;
+			if (dy < 0)
+				dy = -ySpeed * speedFactor;
+			else
+				dy = ySpeed * speedFactor;
+		}
+	}
+
+	override public function onNext() {
+		if (!fl_fly)
+			super.onNext();
+	}
+
+	override public function onHitGround(h:Float) {
+		if (!fl_fly) {
+			fl_intercept = false;
+			super.onHitGround(h);
+			return;
+		}
+		fl_stopStepping = true;
+		dy = -ySpeed * speedFactor;
+	}
+
+	override public function onHitCeil() {
+		if (!fl_fly) {
+			super.onHitCeil();
+			return;
+		}
+		fl_stopStepping = true;
+		dy = ySpeed * speedFactor;
+	}
+
+	override public function onHitWall() {
+		if (!fl_fly) {
+			if (world.getCase(cx, cy) != Data.WALL)
+				dx = -dx;
+			return;
+		}
+		fl_stopStepping = true;
+		dir = -dir;
+		dx = dir * xSpeed * speedFactor;
+	}
+
+	override public function onFreeze() {
+		super.onFreeze();
+		if (fl_fly)
+			fl_intercept = true;
+		land();
+	}
+
+	override public function onKnock() {
+		super.onKnock();
+		land();
+	}
+
+	override public function onMelt() {
+		super.onMelt();
+		fly();
+	}
+
+	override public function onWakeUp() {
+		super.onWakeUp();
+		fly();
+	}
+
+	override public function update() {
+		super.update();
+		// (the top of the level)
+		if (fl_fly && dy < 0 && y <= Data.CASE_HEIGHT)
+			dy = Math.abs(dy);
+	}
+
+	override public function endUpdate() {
+		super.endUpdate();
+		_xscale = dir * Math.abs(_xscale);
+	}
+}
+
+// hammer/entity/bad/flyer/Baleine.mt: the leapers (Bondissantes), flying watermelons
+class Baleine extends Flyer {
+	public function new() {
+		super("baleine");
+	}
+}
+
 // hammer/entity/bad/FireBall.mt: the ghost of the hurry up, chasing the player through the walls
 class FireBall extends Bad {
 	var body:Pic;
@@ -665,6 +827,8 @@ class FireBall extends Bad {
 	public var fl_summon:Bool;
 
 	var bodyFrame:Int;
+	// (its eyelids, playing by themselves: 8 pictures for each of the 60 angles)
+	var eyeFrame:Int = 0;
 
 	public function new() {
 		super("cerise");
@@ -749,7 +913,8 @@ class FireBall extends Bad {
 	override public function endUpdate() {
 		super.endUpdate();
 		bodyHolder._rotation = ang;
-		eyes.show(Std.int(Math.min(60, Math.round(ang / 360 * 60) + 1)));
+		eyeFrame = eyeFrame % 8 + 1;
+		eyes.show((Std.int(Math.min(60, Math.round(ang / 360 * 60) + 1)) - 1) * 8 + eyeFrame);
 		// the body plays its own timeline
 		bodyFrame = bodyFrame % body.count() + 1;
 		body.show(bodyFrame);

@@ -22,7 +22,7 @@ class LevelCast {
 	public static var ORDER:Array<Array<Int>> = [
 		[Data.BAD_CERISE, 0], [Data.BAD_ORANGE, 1], [Data.BAD_POMME, 2], [Data.BAD_BANANE, 3], [Data.BAD_CITRON, 4],
 		[Data.BAD_BOMBE, 5], [Data.BAD_POIRE, 6], [Data.BAD_FRAISE, 7], [Data.BAD_ABRICOT, 8], [Data.BAD_KIWI, 9],
-		[Data.BAD_LITCHI, 10], [Data.BAD_ANANAS, 11], [Data.BAD_FRAMBOISE, 13]
+		[Data.BAD_LITCHI, 10], [Data.BAD_ANANAS, 11], [Data.BAD_FRAMBOISE, 16]
 	];
 
 	// what a bad counts for in the number of bads of a level
@@ -34,10 +34,12 @@ class LevelCast {
 			case Data.BAD_CITRON: 1.25;
 			case Data.BAD_FRAISE: 1.3;
 			case Data.BAD_POIRE: 1.35;
-			case Data.BAD_ABRICOT, Data.BAD_KIWI: 1.5; // (an apricot gives two small ones)
+			case Data.BAD_ABRICOT: 1.9; // (an apricot gives two small ones: deep in the well the levels never ended)
+			case Data.BAD_KIWI: 1.5;
 			case Data.BAD_LITCHI: 1.6; // (two hits)
 			case Data.BAD_FRAMBOISE: 2.2;
 			case Data.BAD_ANANAS: 2.4;
+			case Data.BAD_BALEINE: 2.4;
 			default: 1.3;
 		}
 	}
@@ -103,14 +105,15 @@ class LevelCast {
 	}
 
 	// the bads of a level, counted with cost(): 2 or 3 at first, about 6 at level 5, 8 at level 10, 10 to 11 from level
-	// 13 (the hard levels of the original: 6 to 13)
+	// 14 (the hard levels of the original: 6 to 13)
 	public static function budget(depth:Int):Float {
-		return Math.min(15, 3 + 0.95 * depth) * rhythm(depth);
+		// (players: "à partir du niveau 10 on sent déjà le gros pic": a little gentler, the top a level later)
+		return Math.min(15, 3 + 0.85 * depth) * rhythm(depth);
 	}
 
 	// the most bads in a level (the field is small)
 	static function maxBads(depth:Int):Int {
-		return depth < 12 ? 10 : 11;
+		return depth < 14 ? 10 : 11;
 	}
 
 	// bads of a kind in its first level (the original: 3 bananas, 3 lemons, 3 bombs, 2 then 4 pears, 2 apricots...)
@@ -128,7 +131,8 @@ class LevelCast {
 			case Data.BAD_ANANAS: lead && depth >= 18 ? 2 : 1;
 			case Data.BAD_FRAMBOISE: lead ? (depth >= 22 ? 3 : 2) : (depth >= 20 ? 2 : 1);
 			case Data.BAD_FRAISE, Data.BAD_POIRE, Data.BAD_POMME, Data.BAD_BANANE: lead ? 4 : 2;
-			case Data.BAD_ABRICOT, Data.BAD_KIWI, Data.BAD_LITCHI: lead ? 4 : 2;
+			case Data.BAD_ABRICOT: depth >= 14 ? (lead ? 2 : 1) : (lead ? 3 : 2);
+			case Data.BAD_KIWI, Data.BAD_LITCHI: lead ? 4 : 2;
 			case Data.BAD_CITRON: lead ? 4 : 3;
 			case Data.BAD_CERISE, Data.BAD_ORANGE: lead ? 5 : 3;
 			default: lead ? 6 : 3;
@@ -154,8 +158,10 @@ class LevelCast {
 		return i < 0 ? ids[0] : ids[i];
 	}
 
-	public static function make(depth:Int):Cast {
-		var b = budget(depth);
+	// the bads of a level drawn for its idea (LevelConcept): its leading kinds, the kinds around them, how many kinds,
+	// how hard
+	public static function make(depth:Int, ?concept:LevelConcept.Concept, ?open:Bool = false):Cast {
+		var b = budget(depth) * (concept != null ? concept.hard : 1.0) * (open && depth >= 4 ? 0.88 : 1.0);
 		var intro = introKind(depth);
 		var list:Array<Int> = [];
 		// (no cherries deep in the well: they only walk)
@@ -188,8 +194,10 @@ class LevelCast {
 				var weak = k == Data.BAD_CERISE || k == Data.BAD_ORANGE || k == Data.BAD_POMME || k == Data.BAD_BANANE;
 				if (weak && depth >= 8)
 					w *= depth >= 14 ? 0.25 : 0.5;
-				if (!weak && depth >= 10)
+				if (!weak && depth >= 12)
 					w *= k == Data.BAD_ANANAS || k == Data.BAD_FRAMBOISE ? 1.2 : 1.5;
+				if (k == Data.BAD_ABRICOT && depth >= 14)
+					w *= 0.5;
 				// (the bads of the dimension of the level)
 				for (t in LevelTheme.of(depth).leads)
 					if (t == k)
@@ -200,6 +208,15 @@ class LevelCast {
 					w *= 0.5;
 				w;
 			}];
+			// (the kinds the idea of the level is made for)
+			if (concept != null && concept.leads.length > 0) {
+				var cw = [for (i in 0...kinds.length) concept.leads.indexOf(kinds[i]) >= 0 ? Math.max(lw[i], 1) : 0];
+				var sum = 0.0;
+				for (v in cw)
+					sum += v;
+				if (sum > 0)
+					lw = cw;
+			}
 			lead = drawIn(kinds, lw);
 		}
 		prevLead2 = prevLead;
@@ -209,12 +226,20 @@ class LevelCast {
 			[2, 2, 3, 3, 3, 4][rnd(6)];
 		if (intro >= 0)
 			nk = 2;
+		else if (concept != null && concept.kinds.length > 0)
+			nk = concept.kinds[rnd(concept.kinds.length)];
 		// (a pineapple or a raspberry leads with other kinds around it: a level holds one or two of them)
 		if (cap(lead, true, depth) <= 2 && nk < 2)
 			nk = 2;
 		nk = Std.int(Math.min(nk, kinds.length));
 		var chosen = [lead];
 		var pool = [for (k in kinds) if (k != lead) k];
+		// (the kinds around the leading one: the ones of the idea of the level)
+		if (concept != null && concept.support.length > 0) {
+			var sp = [for (k in pool) if (concept.support.indexOf(k) >= 0) k];
+			if (sp.length > 0)
+				pool = sp;
+		}
 		while (chosen.length < nk && pool.length > 0) {
 			var w = [for (k in pool) {
 				var v:Float = affinity(lead, k);
@@ -257,13 +282,19 @@ class LevelCast {
 				n += c;
 			return n;
 		}
+		// (a level of an idea keeps to its kinds: one or two more of each instead of another kind; not the ones placed
+		// with care, few in a level: the strawberries, the strong ones)
+		var idea = concept != null && intro < 0;
+		inline function more(id:Int):Int
+			return !idea || id == Data.BAD_FRAISE || id == Data.BAD_ANANAS || id == Data.BAD_FRAMBOISE || id == Data.BAD_ABRICOT
+				|| id == Data.BAD_BALEINE ? 0 : 2;
 		while (guard++ < 60 && total() < maxBads(depth)) {
 			// the kind that is the furthest under its share of the budget
 			var best = -1;
 			var bestGap = 0.0;
 			for (i in 0...chosen.length) {
 				var id = chosen[i];
-				if (counts[i] >= cap(id, i == 0, depth) || used + cost(id) > b + 0.4)
+				if (counts[i] >= cap(id, i == 0, depth) + more(id) || used + cost(id) > b + 0.4)
 					continue;
 				var share = i == 0 ? leadShare : (1 - leadShare) / Math.max(1, chosen.length - 1);
 				var gap = share * b - counts[i] * cost(id);
@@ -273,7 +304,7 @@ class LevelCast {
 				}
 			}
 			if (best < 0) {
-				if (used >= b * 0.8 || pool.length == 0 || chosen.length >= 4)
+				if (used >= b * 0.8 || pool.length == 0 || chosen.length >= (idea ? 3 : 4))
 					break;
 				var w = [for (k in pool) affinity(lead, k) * 10.0];
 				var k = drawIn(pool, w);
@@ -294,17 +325,40 @@ class LevelCast {
 				list.push(chosen[i]);
 		// deeper, harder: a strawberry alone (its ball thrown at Igor wherever he is, from a perch far away) and
 		// pineapples (their landings knock him out wherever he stands), more of them deeper
-		if (depth >= 12 && intro < 0) {
-			if (list.indexOf(Data.BAD_FRAISE) < 0 && rnd(100) < Std.int(Math.min(45, 15 + (depth - 12) * 2)))
+		// (from level 14: the big rise came too soon)
+		if (depth >= 14 && intro < 0 && (concept == null || concept.extras)) {
+			if (list.indexOf(Data.BAD_FRAISE) < 0 && rnd(100) < Std.int(Math.min(45, 15 + (depth - 14) * 2)))
 				addHard(list, Data.BAD_FRAISE, lead, depth);
 			var pine = 0;
 			for (id in list)
 				if (id == Data.BAD_ANANAS)
 					pine++;
-			if (pine < (depth >= 20 ? 2 : 1) && rnd(100) < Std.int(Math.min(55, 15 + (depth - 12) * 2.5)))
+			if (pine < (depth >= 22 ? 2 : 1) && rnd(100) < Std.int(Math.min(55, 15 + (depth - 14) * 2.5)))
 				addHard(list, Data.BAD_ANANAS, lead, depth);
 		}
+		// (the leapers: the idea made for them; one now and then in the ideas of the open air, where they fly)
+		if (concept != null && concept.id == "bondissantes")
+			addLeaper(list, lead, depth, true);
+		else if (concept != null && (concept.id == "vide" || concept.id == "framboises") && depth > LEAPER_DEPTH
+			&& rnd(100) < 25)
+			addLeaper(list, lead, depth, true);
 		return {lead: lead, intro: intro >= 0, list: list};
+	}
+
+	// the leapers (Bondissantes): flying watermelons bouncing at 45 degrees off everything, faster and faster with
+	// their anger, very hard to hit deep in the well: only from level 25 (one in its first level, then in the levels of
+	// their idea, now and then in the open air), one at a time (two now and then from level 45)
+	public static inline var LEAPER_DEPTH = 25;
+
+	static function addLeaper(list:Array<Int>, lead:Int, depth:Int, ?always:Bool = false) {
+		if (depth < LEAPER_DEPTH)
+			return;
+		var p = always || depth == LEAPER_DEPTH ? 100 : Std.int(Math.min(32, 20 + (depth - LEAPER_DEPTH) * 0.5));
+		if (rnd(100) >= p)
+			return;
+		addHard(list, Data.BAD_BALEINE, lead, depth);
+		if (depth >= 45 && rnd(100) < 10)
+			addHard(list, Data.BAD_BALEINE, lead, depth);
 	}
 
 	// a bad more, or in place of the weakest one that is not of the leading kind when the level is full

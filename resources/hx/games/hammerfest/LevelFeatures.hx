@@ -9,7 +9,7 @@ typedef GGate = {cells:Array<GPt>, behind:Array<Bool>, lost:Int, bads:Array<Int>
 
 // The devices and hazards of a level, each one for a reason, and few of them (a level has none, one, or two deep in
 // the well):
-// - the vault (LevelCompose): its bads shut in, their ice cannot go out: a laser of black bombs in its window, the
+// - the vault (LevelDesign): its bads shut in, their ice cannot go out: a laser of black bombs in its window, the
 //   way in (Black.onExplode kills them);
 // - a gate: a laser on a passage every way to some bads goes through, of the colour of what is behind it: green bombs
 //   (mines) where the bads run everywhere, blue ones (they knock out) where the bads blow up or crush, red ones (they
@@ -55,35 +55,54 @@ class LevelFeatures {
 
 	// drawn once for the depth (the levels made for it all try them): none at first, then one in a level out of two,
 	// one or two deep in the well
-	public static function draw(d:Int, ?lineup:LevelCast.Cast):Array<String> {
+	public static function draw(d:Int, ?lineup:LevelCast.Cast, ?concept:LevelConcept.Concept):Array<String> {
 		if (force != null)
 			return force.split(",");
 		var th = LevelTheme.of(d);
 		inline function chance(p:Float)
 			return Cs.rnd(1000) < p * 1000;
+		// (players: the first levels too hard for most players, "des endroits piégés": no device before level 5, few
+		// before 8; "ça manque des niveaux avec des lasers": the lasers more often from level 8)
+		// ("ils n'exploitent pas comme il faut les lasers": more of them, deep in the well a level without one is rare)
 		var n = 0;
-		if (d >= 3 && d < 8)
+		if (d >= 5 && d < 8)
 			n = chance(0.5) ? 1 : 0;
 		else if (d >= 8 && d < 15)
-			n = chance(0.3) ? 0 : (chance(0.8) ? 1 : 2);
+			n = chance(0.15) ? 0 : (chance(0.65) ? 1 : 2);
 		else if (d >= 15)
-			n = chance(0.2) ? 0 : (chance(0.62) ? 1 : 2);
+			n = chance(0.08) ? 0 : (chance(0.45) ? 1 : 2);
 		var perched = lineup != null
 			&& (lineup.list.indexOf(Data.BAD_FRAISE) >= 0 || lineup.list.indexOf(Data.BAD_POIRE) >= 0);
 		var kinds = ["gate", "spikes", "pit", "vault", "disarm", "teleport", "saws", "nest"];
 		var w = [
-			d >= 4 ? (d >= 10 ? 4.5 : 3.0) : 0, // gate
-			4.0, // spikes
-			d >= 5 ? 1.2 : 0, // pit
-			d >= 6 ? 0.8 : 0, // vault
-			d >= 9 ? 1.2 : 0, // disarm
-			d >= 5 ? 1.2 : 0, // teleport
-			d >= 6 ? 1.6 : 0, // saws (more of them)
-			d >= 9 && perched ? 2.2 : 0 // nest: strawberries up where only the red jump goes
+			d >= 5 ? (d >= 10 ? 7.0 : 4.5) : 0, // gate
+			d >= 6 ? 4.5 : 0, // spikes
+			d >= 8 ? 1.6 : 0, // pit
+			d >= 7 ? 1.0 : 0, // vault
+			d >= 9 ? 1.8 : 0, // disarm
+			d >= 6 ? 1.2 : 0, // teleport
+			d >= 7 ? 1.6 : 0, // saws (more of them)
+			d >= 10 && perched ? 2.6 : 0 // nest: strawberries up where only the red jump goes
 		];
 		for (i in 0...kinds.length)
 			w[i] *= th.features.exists(kinds[i]) ? th.features.get(kinds[i]) : 1.0;
 		var out:Array<String> = [];
+		// the devices of the idea of the level first (the others fewer: the level has one idea)
+		if (concept != null)
+			for (f in concept.want) {
+				var i = kinds.indexOf(f);
+				if (i >= 0 && w[i] > 0 && out.indexOf(f) < 0) {
+					out.push(f);
+					w[i] = 0;
+					n--;
+				}
+			}
+		// (the vault and the nest are ideas of their own (coffre, nid): not drawn in the levels of another idea; the
+		// lasers, the spikes, the saws, the teleporters go with any idea)
+		if (concept != null) {
+			w[kinds.indexOf("vault")] = 0;
+			w[kinds.indexOf("nest")] = 0;
+		}
 		for (k in 0...n) {
 			var iw = [for (v in w) Std.int(v * 100)];
 			var i = Cs.draw(iw);
@@ -92,6 +111,13 @@ class LevelFeatures {
 			out.push(kinds[i]);
 			w[i] = 0;
 		}
+		// (a laser in most levels deep in the well)
+		if (d >= 8 && out.indexOf("gate") < 0 && chance(d >= 15 ? 0.85 : 0.7))
+			out.push("gate");
+		// ("des pics bien placés qui peuvent gêner le joueur": spikes in a level in 3 or 4 deep in the well, where the
+		// fruits never go)
+		if (d >= 8 && out.indexOf("spikes") < 0 && out.indexOf("pit") < 0 && chance(0.25))
+			out.push("spikes");
 		return out;
 	}
 
@@ -129,9 +155,12 @@ class LevelFeatures {
 			shelters(straws);
 			g.computeReach();
 		}
-		// saws: from level 5, more and more deep in the well (the Hells and the Crypt of the original are full of them),
+		// saws: from level 7, more and more deep in the well (the Hells and the Crypt of the original are full of them),
 		// one more when the level is drawn with them
 		var saws = sawCount(g.depth) + (want.indexOf("saws") >= 0 ? 1 : 0);
+		// (a level made for its spikes: no saw running over them)
+		if (g.concept != null && g.concept.id == "pics" && want.indexOf("saws") < 0)
+			saws = 0;
 		if (saws > 0) {
 			g.routes.compute();
 			for (i in 0...saws)
@@ -142,7 +171,7 @@ class LevelFeatures {
 				count("nest.no");
 			g.computeReach();
 		}
-		if (want.indexOf("teleport") >= 0) {
+		if (want.indexOf("teleport") >= 0 && !g.designTeles && g.close == null) {
 			g.routes.compute();
 			if (!teleporters())
 				count("tele.no");
@@ -153,15 +182,74 @@ class LevelFeatures {
 
 	// the saws of a level for its depth
 	function sawCount(d:Int):Int {
-		if (d < 5)
+		// (none before level 7: the first levels simple)
+		if (d < 7)
 			return 0;
-		if (d < 8)
+		if (d < 9)
 			return g.chance(0.3) ? 1 : 0;
 		if (d < 12)
 			return g.chance(0.65) ? 1 : 0;
 		if (d < 20)
 			return 1 + (g.chance(0.5) ? 1 : 0);
 		return 2 + (g.chance(0.4) ? 1 : 0);
+	}
+
+	// ---------------------------------------------------------------- the cellar
+
+	// the twin of the teleporter of the cellar (LevelDesign.cellar): on a ground of the ways of Igor, far from the
+	// cellar, between a ground under it and a lintel over it (the ground of a platform over it, or a case put there); the
+	// cellar reached through it only
+	public function closeTele():Bool {
+		var c = g.close;
+		g.computeReach();
+		if (!g.exitOk)
+			return false;
+		for (x in c.x0...c.x1 + 1)
+			if (g.reach[x][c.y])
+				return false;
+		var l = landing();
+		var cands:Array<{p:GPt, v:Float}> = [];
+		for (x in 0...W)
+			for (y in 3...H - 1) {
+				if (!g.canStand(x, y) || !g.reach[x][y] || m[x][y - 1] != 0 || g.busy[x][y] || g.busy[x][y - 1])
+					continue;
+				if (m[x][y - 2] < 0 || g.inClose(x, y) || g.inClose(x, y - 2) || Math.abs(x - l.x) + Math.abs(y - l.y) < 4)
+					continue;
+				var far = Math.abs(x - c.tele) + Math.abs(y - c.y);
+				if (far < 7)
+					continue;
+				// (a ground over it already, a wall beside it, far from the cellar)
+				var v = (m[x][y - 2] > 0 ? 3.0 : 0) + ((g.gr(x - 1, y) || g.gr(x + 1, y)) ? 1.5 : 0) + Math.min(14, far) * 0.2
+					+ g.rnd(100) / 40;
+				cands.push({p: {x: x, y: y}, v: v});
+			}
+		cands.sort(function(a, b) return a.v > b.v ? -1 : (a.v < b.v ? 1 : 0));
+		for (i in 0...Std.int(Math.min(12, cands.length))) {
+			var p = cands[i].p;
+			var lintel = m[p.x][p.y - 2] == 0;
+			m[p.x][p.y] = Data.FIELD_TELEPORT;
+			m[p.x][p.y - 1] = Data.FIELD_TELEPORT;
+			if (lintel)
+				m[p.x][p.y - 2] = 1;
+			g.computeReach();
+			var inside = false;
+			for (x in c.x0...c.x1 + 1)
+				if (g.reach[x][c.y])
+					inside = true;
+			if (inside && g.exitOk && g.startOk() && g.openColumns() <= g.openBase) {
+				g.mark(p.x, p.y);
+				g.mark(p.x, p.y - 1);
+				count("close.ok");
+				return true;
+			}
+			m[p.x][p.y] = 0;
+			m[p.x][p.y - 1] = 0;
+			if (lintel)
+				m[p.x][p.y - 2] = 0;
+		}
+		g.computeReach();
+		count("close.no");
+		return false;
 	}
 
 	// ---------------------------------------------------------------- the nest
@@ -242,7 +330,7 @@ class LevelFeatures {
 					site = st;
 				}
 			}
-		if (normal || !red || site == null || !g.exitOk || !g.startOk() || g.openColumns() > 0) {
+		if (normal || !red || site == null || !g.exitOk || !g.startOk() || g.openColumns() > g.openBase) {
 			for (x in best.x0...best.x1 + 1)
 				m[x][best.y] = 0;
 			g.redJump = false;
@@ -443,7 +531,7 @@ class LevelFeatures {
 				case "gate":
 					if (!gate())
 						count("gate.no");
-					else if (g.depth >= 12 && g.chance(0.5))
+					else if (g.depth >= 12 && g.chance(0.65))
 						gate();
 				case "pit":
 					if (!pit()) {
@@ -513,6 +601,23 @@ class LevelFeatures {
 				if (ok)
 					out.push({cells: [for (yy in t...y + 1) {x: x, y: yy}], behind: null, lost: 0, bads: [], door: true});
 			}
+		// curtains: from the tip of a platform down to the platform 3 rows lower (the 2 cases between them, Igor walking
+		// on the lower one goes through it; levels over the void have few holes with a ground under them)
+		for (x in 0...W)
+			for (y in 2...H - 2) {
+				if (m[x][y] <= 0 || m[x][y - 1] > 0 || m[x][y + 1] != 0 || m[x][y + 2] != 0 || y + 3 >= H || m[x][y + 3] <= 0)
+					continue;
+				// (the tip of the upper platform: no ground on one side of it)
+				var tip = (x == 0 || m[x - 1][y] <= 0) != (x == W - 1 || m[x + 1][y] <= 0);
+				if (!tip || !g.passable(x - 1, y + 2) || !g.passable(x + 1, y + 2))
+					continue;
+				var ok = true;
+				for (yy in y + 1...y + 3)
+					if (g.busy[x][yy] || g.danger[x][yy] || (x > 0 && m[x - 1][yy] < 0) || (x < W - 1 && m[x + 1][yy] < 0))
+						ok = false;
+				if (ok && g.canStand(x, y + 2))
+					out.push({cells: [{x: x, y: y + 1}, {x: x, y: y + 2}], behind: null, lost: 0, bads: [], door: true});
+			}
 		return out;
 	}
 
@@ -577,11 +682,13 @@ class LevelFeatures {
 
 	// ---------------------------------------------------------------- a gate
 
-	// the laser on the passage every way to the most bads goes through, of the colour of what is behind it
+	// the laser on the passage every way to the most bads goes through, of the colour of what is behind it (else on a
+	// passage Igor takes often by dangerous bads, of their colour)
 	function gate():Bool {
 		var best:GGate = null;
 		var bv = 0.0;
-		for (s in sites()) {
+		var all = sites();
+		for (s in all) {
 			if (nearStart(s))
 				continue;
 			measure(s);
@@ -590,18 +697,92 @@ class LevelFeatures {
 			var v = s.bads.length * 2.0 + Math.min(6, s.lost * 0.3) + g.rnd(100) / 60;
 			for (c in s.cells)
 				v += Math.min(2, g.routes.at(c.x, c.y) * 0.3);
+			// (a passage the structure made for it: the gap of a frame, the middle of a bridge, a hole of a ceiling)
+			if (designed(s))
+				v += 3;
 			if (v > bv) {
 				bv = v;
 				best = s;
 			}
 		}
+		// (no passage shutting bads away: a passage Igor goes through often, dangerous bads near it (one is enough
+		// deep in the well); its laser gives him the bombs for them on his way)
+		if (best == null)
+			for (s in all) {
+				if (nearStart(s) || s.behind == null)
+					continue;
+				var traffic = 0.0;
+				for (c in s.cells)
+					traffic += g.routes.at(c.x, c.y);
+				if (traffic < 2)
+					continue;
+				var near:Array<Int> = [];
+				for (i in 0...g.bads.length) {
+					var b = g.bads[i];
+					if (!isFruit(b.id) || b.id == Data.BAD_CERISE)
+						continue;
+					var d = 99;
+					for (c in s.cells)
+						d = Std.int(Math.min(d, Math.abs(c.x - b.x) + Math.abs(c.y - b.y)));
+					if (d <= 6)
+						near.push(i);
+				}
+				if (near.length < (g.depth >= 10 ? 1 : 2))
+					continue;
+				var v = Math.min(8, traffic) * 0.4 + near.length + g.rnd(100) / 60 + (designed(s) ? 3 : 0);
+				if (v > bv) {
+					bv = v;
+					best = s;
+					s.bads = near;
+				}
+			}
 		if (best == null)
 			return false;
 		var col = colourFor(best);
 		put(best, col);
 		g.gates.push({cells: best.cells, v: col});
 		count("gate." + col);
+		// (a mirrored level: the same laser on the mirrored passage)
+		if (g.sym)
+			for (s in all) {
+				if (s == best || s.cells.length != best.cells.length || nearStart(s))
+					continue;
+				var mirror = true;
+				for (c in s.cells) {
+					var found = false;
+					for (b in best.cells)
+						if (b.x == W - 1 - c.x && b.y == c.y)
+							found = true;
+					if (!found)
+						mirror = false;
+				}
+				if (mirror) {
+					put(s, col);
+					g.gates.push({cells: s.cells, v: col});
+					break;
+				}
+			}
 		return true;
+	}
+
+	// a passage of the level the structure made for a laser (LevelDesign.gates)
+	function designed(s:GGate):Bool {
+		for (dg in g.designGates) {
+			if (dg.length != s.cells.length)
+				continue;
+			var same = true;
+			for (c in s.cells) {
+				var found = false;
+				for (d in dg)
+					if (d.x == c.x && d.y == c.y)
+						found = true;
+				if (!found)
+					same = false;
+			}
+			if (same)
+				return true;
+		}
+		return false;
 	}
 
 	// the bombs that go with the bads behind a passage
@@ -633,10 +814,13 @@ class LevelFeatures {
 		if (bot - top >= 8)
 			red += 2;
 		var c = LevelTheme.of(g.depth).colors;
+		// (the colours of the idea of the level: blue against the Bombinos and the pineapples, green against the
+		// runners, red for a nest)
+		var k = g.concept != null ? g.concept.colours : [1.0, 1.0, 1.0];
 		var w = [
-			Std.int(green * c[3] * 30 * (g.depth >= 4 ? 1 : 0)),
-			Std.int(blue * c[2] * 30),
-			Std.int(red * c[4] * 30 * (g.depth >= 6 ? 1 : 0))
+			Std.int(green * c[3] * 30 * k[0] * (g.depth >= 4 ? 1 : 0)),
+			Std.int(blue * c[2] * 30 * k[1]),
+			Std.int(red * c[4] * 30 * k[2] * (g.depth >= 6 ? 1 : 0))
 		];
 		return switch (g.draw(w)) {
 			case 0: GREEN;
@@ -756,7 +940,7 @@ class LevelFeatures {
 	// spikes where the ice of the bads falls when it is kicked off their platforms (they die there), out of the ways of
 	// the bads walking and of the ways Igor needs
 	function pit():Bool {
-		var zone = g.badZone();
+		var zone = g.fruitZone();
 		var land = new Map<Int, Int>();
 		for (b in g.bads) {
 			if (!isFruit(b.id))
@@ -773,7 +957,7 @@ class LevelFeatures {
 			var run:Array<GPt> = [];
 			var hits = 0;
 			for (x in s.x0...s.x1 + 1) {
-				var ok = g.farFromBads(zone, x, s.y) && !g.busy[x][s.y] && g.m[x][s.y] == 0;
+				var ok = !zone[x][s.y] && !g.busy[x][s.y] && g.m[x][s.y] == 0 && !g.inClose(x, s.y);
 				if (ok) {
 					run.push({x: x, y: s.y});
 					if (land.exists(x * H + s.y))
@@ -796,7 +980,7 @@ class LevelFeatures {
 		for (p in best)
 			g.setDanger(p, true);
 		g.computeReach();
-		if (!g.exitOk || !g.startOk() || g.openColumns() > 0 || !badsReached()) {
+		if (!g.exitOk || !g.startOk() || g.openColumns() > g.openBase || !badsReached()) {
 			for (p in best)
 				g.setDanger(p, false);
 			g.computeReach();
@@ -906,7 +1090,7 @@ class LevelFeatures {
 		for (c in cells)
 			m[c.x][c.y] = c.v;
 		g.computeReach();
-		var ok = g.exitOk && g.startOk() && g.openColumns() == 0;
+		var ok = g.exitOk && g.startOk() && g.openColumns() <= g.openBase;
 		if (ok)
 			ok = g.wayBack() > before + 0.05;
 		if (!ok) {

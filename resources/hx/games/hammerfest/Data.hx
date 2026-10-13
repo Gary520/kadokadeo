@@ -259,6 +259,7 @@ class Data {
 	public static inline var BAD_ORANGE = 9;
 	public static inline var BAD_FRAISE = 10;
 	public static inline var BAD_CITRON = 11;
+	public static inline var BAD_BALEINE = 12;
 	public static inline var BAD_KIWI = 18;
 	public static inline var BAD_SPEAR = 13;
 	public static inline var BAD_CRAWLER = 14;

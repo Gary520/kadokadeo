@@ -67,6 +67,8 @@ class LevelBads {
 	public var guardedN:Int = 0;
 	// (remade levels of the original: where its bads were, better places)
 	public var hints:Array<{x:Int, y:Int}> = null;
+	// the bads drawn for places of the level (the room shut reached by a teleporter): put there first
+	public var spots:Array<{id:Int, x:Int, y:Int}> = [];
 
 	public function new(g:LevelGen) {
 		this.g = g;
@@ -395,9 +397,10 @@ class LevelBads {
 			|| id == Data.BAD_KIWI || id == Data.BAD_FRAMBOISE;
 	}
 
+	// (never a spot of one case: a walker there walks off it at once, IA_SMALL_SPOT in Bad.onFall; players saw two
+	// strawberries put on the tops of two pillars come down)
 	static function minLen(id:Int):Int {
 		return switch (id) {
-			case Data.BAD_FRAISE, Data.BAD_BOMBE: 1;
 			case Data.BAD_ANANAS: 4;
 			case Data.BAD_KIWI, Data.BAD_LITCHI: 3;
 			case Data.BAD_POMME, Data.BAD_ABRICOT: 3;
@@ -424,6 +427,11 @@ class LevelBads {
 			return false;
 		// Igor comes in falling anywhere: no bad on the first ground of the columns of the top, no shooter on its rows
 		if (s.y <= topLand + 1 && (shooter(id) || s.y == topLand))
+			return false;
+		// (a pear in a box: a ceiling low over it and walls at both ends, or a corner of the bottom floor under a ledge:
+		// nothing reaches it from outside, Igor has to come into the blast of its bombs (4 cases) to get it out, a life
+		// lost: never; pears are high, on balconies)
+		if (id == Data.BAD_POIRE && f.head <= 3 && ((f.wallL && f.wallR) || (s.y >= H - 2 && (f.wallL || f.wallR))))
 			return false;
 		if (id == Data.BAD_CRAWLER && !(s.x0 > 0 && g.gr(s.x0 - 1, s.y) && g.gr(s.x0 - 1, s.y - 1))
 			&& !(s.x1 < W - 1 && g.gr(s.x1 + 1, s.y) && g.gr(s.x1 + 1, s.y - 1)))
@@ -550,12 +558,6 @@ class LevelBads {
 			}
 		}
 		return v;
-	}
-
-	static inline function spotWhy(k:String) {
-		#if gentest
-		LevelFeatures.why.set("spot." + k, (LevelFeatures.why.exists("spot." + k) ? LevelFeatures.why.get("spot." + k) : 0) + 1);
-		#end
 	}
 
 	// ---------------------------------------------------------------- placing
@@ -688,6 +690,12 @@ class LevelBads {
 				continue;
 			var s = segs[k];
 			var v = liking(id, k) + together(id, k, (s.x0 + s.x1) >> 1) - used[k] * 2 + g.rnd(100) / 80;
+			// (the first levels: the bads spread over the floors, every floor of the level with a use; players: "intérêt
+			// des plateformes au-dessus avec les oranges toutes en bas ?")
+			if (g.depth <= LevelDesign.EASY_DEPTH)
+				for (p in placed)
+					if (p.y == s.y)
+						v -= 4;
 			if (hints != null)
 				for (h in hints)
 					if (h.y == s.y && h.x >= s.x0 && h.x <= s.x1) {
@@ -720,7 +728,8 @@ class LevelBads {
 			var v = liking(id, b.k);
 			put(id, b.k, x, v);
 			i++;
-			if (g.sym && i < n && id != Data.BAD_ANANAS && g.chance(0.6)) {
+			// (by mirrored pairs on a row; not in the first levels with few of them: one a floor)
+			if (g.sym && i < n && id != Data.BAD_ANANAS && (g.depth > LevelDesign.EASY_DEPTH || n >= 4) && g.chance(0.6)) {
 				var mr = mirrorOf(id, b.k, x);
 				if (mr != null) {
 					put(id, mr.k, mr.x, liking(id, mr.k));
@@ -732,7 +741,7 @@ class LevelBads {
 			g.missing += n - i;
 	}
 
-	// a place for a strawberry with the ones already there (the stages of LevelCompose): on the other side of the level
+	// a place for a strawberry with the ones already there: on the other side of the level
 	// (their ball across it), never on the same side less than 6 cases away (the ball along the side), far from the middle
 	function formation(x:Int, y:Int):Float {
 		var v = 0.0;
@@ -1048,33 +1057,18 @@ class LevelBads {
 					}
 					break;
 				}
-		// the bads of the stages (LevelCompose) in the places made for them
-		for (p in g.spots) {
-			if (!num.exists(p.id) || num.get(p.id) <= 0) {
-				spotWhy("num" + p.id);
+		// the bads drawn for places of the level
+		for (p in spots) {
+			if (!num.exists(p.id) || num.get(p.id) <= 0)
 				continue;
-			}
-			var found = false;
 			for (k in 0...segs.length) {
 				var s = segs[k];
-				if (s.y != p.y || p.x < s.x0 || p.x > s.x1)
-					continue;
-				found = true;
-				if (allowed(p.id, k) && !g.busy[p.x][p.y] && !crowded(p.x, p.y)) {
-					put(p.id, k, p.x, liking(p.id, k) + 1.5);
+				if (s.y == p.y && p.x >= s.x0 && p.x <= s.x1 && !g.busy[p.x][p.y]) {
+					put(p.id, k, p.x, ideal(p.id));
 					num.set(p.id, num.get(p.id) - 1);
-				} else {
-					#if gentest
-					var f = inf[k];
-					spotWhy(!allowed(p.id, k) ? (f.len < minLen(p.id) ? "len" : (used[k] >= room(f.len) ? "room"
-						: (g.isNoBad(s) || g.spikesNear(s) ? "haz" : (!killer && !f.escape ? "shut" : (s.y <= topLand + 1 ? "top" : "start")))))
-						: (g.busy[p.x][p.y] ? "busy" : "crowd"));
-					#end
+					break;
 				}
-				break;
 			}
-			if (!found)
-				spotWhy("seg" + p.id);
 		}
 		var order = [Data.BAD_FRAISE, Data.BAD_ANANAS, Data.BAD_POIRE, Data.BAD_CITRON, Data.BAD_KIWI, Data.BAD_ORANGE,
 			Data.BAD_POMME, Data.BAD_BOMBE, Data.BAD_ABRICOT, Data.BAD_LITCHI, Data.BAD_BANANE, Data.BAD_FRAMBOISE,

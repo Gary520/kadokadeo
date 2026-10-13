@@ -4,7 +4,8 @@ package hammerfest;
 class Interface {
 	static inline var BASE_X = 92; // lives
 	static inline var BASE_WIDTH = 16;
-	static inline var MAX_LIVES = 5;
+	// (8 cones at the most like the original (GameInterface.MAX_LIVES), then the "+")
+	static inline var MAX_LIVES = 8;
 	// level: the red arrow of the bar and the number, centered in the box of the bar (between its cracks at 234
 	// and 294); the score is shown by the site under the game
 	static inline var BOX_CENTER = 264;
@@ -85,12 +86,25 @@ class Interface {
 			l.destroy();
 		}
 		while (lives.length < v && lives.length < MAX_LIVES) {
+			// (GameInterface.setLives: a new cone plays its clip, update: it comes in big and clear, sets in its place,
+			// flashes white; players: "il manque l'animation du cône quand on obtient une nouvelle vie")
 			var l = new Pic("life");
-			l.show(l.count()); // end of its appearing animation
+			l.show(1);
 			l._x = BASE_X + lives.length * BASE_WIDTH;
 			l._y = -19;
 			mc.addChild(l);
 			lives.push(l);
+		}
+		// (more lives than cones: a "+" after the last one, like the original)
+		if (v > MAX_LIVES && more == null) {
+			more = new Pic("more");
+			more._x = BASE_X + BASE_WIDTH * MAX_LIVES - 4;
+			more._y = -25;
+			mc.addChild(more);
+		} else if (v <= MAX_LIVES && more != null) {
+			mc.removeChild(more);
+			more.destroy();
+			more = null;
 		}
 	}
 
@@ -149,5 +163,10 @@ class Interface {
 		return w;
 	}
 
-	public function update() {}
+	// the clips of the new cones play their frames, one a cycle, and stop on their last one (frame 23: stop())
+	public function update() {
+		for (l in lives)
+			if (l.cur < l.count())
+				l.show(l.cur + 1);
+	}
 }

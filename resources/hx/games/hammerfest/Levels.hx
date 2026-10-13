@@ -43,6 +43,10 @@ class Levels {
 		if (w.__hfStraw == null)
 			w.__hfStraw = {};
 		Reflect.setField(w.__hfStraw, "" + depth, LevelGen.lastStraw);
+		// (the way of drawing of each level and its variant)
+		if (w.__hfKind == null)
+			w.__hfKind = {};
+		Reflect.setField(w.__hfKind, "" + depth, LevelGen.lastKind);
 		#end
 		// walls: a ground under another ground (GameMechanics.parseWalls)
 		var m = l.map;
