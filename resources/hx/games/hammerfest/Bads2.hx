@@ -140,9 +140,11 @@ class Ananas extends Jumper {
 		setNext(0, -10, Data.SECOND * 0.9, Data.ACTION_MOVE);
 		fl_attack = true;
 		var c = new ASprite();
-		c.addChild(new Pic("curse", Data.CURSE_TAUNT));
+		var taunt = new Pic("curse_" + Data.CURSE_TAUNT);
+		c.addChild(taunt);
 		game.dm.add(c, Data.DP_FX);
 		stick(c, 0, -Data.CASE_HEIGHT * 2.5);
+		stickerPic = taunt;
 	}
 
 	function attack() {
@@ -519,8 +521,10 @@ class Saw extends WallWalker {
 		blade = new Pic("sawBlade");
 		bladeHolder.addChild(blade);
 		subMc.addChild(bladeHolder);
-		var body = new Pic("sawBody");
+		// (its shine and its bolts play by themselves: 2 pictures)
+		var body = new Pic("sawShine");
 		subMc.addChild(body);
+		shine = body;
 		pic.setAnim("sawBody");
 		speed = BASE_SPEED;
 		angerFactor = 0;
@@ -622,7 +626,10 @@ class Saw extends WallWalker {
 		else
 			rotSpeed = Math.min(ROTATION_SPEED, rotSpeed + Game.tmod);
 		bladeHolder._rotation += rotSpeed;
+		shine.show(shine.cur % shine.count() + 1);
 	}
+
+	var shine:Pic;
 
 	override public function update() {
 		if (fl_stun) {

@@ -114,8 +114,74 @@ class Animator extends Trigger {
 		pic.setAnim(animName(animId));
 		pic.show(1);
 		setSubs();
+		setStars();
 		fl_loop = a.loop;
 		frame = 0;
+	}
+
+	// the stars turning over a knocked out bad (clips 115 / 116 of the original): their two orbits placed in the
+	// animation (Art.STARS: x, y, scale, rotation of each), 29 pictures each, every star twinkling over 9 pictures
+	// (knockStar); they play by themselves from the start of the animation
+	var stars:Array<ASprite> = null;
+	var starPics:Array<Pic>;
+	var starTimer:Int = 0;
+	var starAnim:String = null;
+	var starsOn:Bool = false;
+
+	function setStars() {
+		if (pic.anim == starAnim)
+			return;
+		starAnim = pic.anim;
+		var s = Art.STARS.get(pic.anim);
+		starsOn = s != null;
+		if (s == null) {
+			if (stars != null)
+				for (h in stars)
+					h._visible = false;
+			return;
+		}
+		if (stars == null) {
+			stars = [];
+			starPics = [];
+			for (i in 0...2) {
+				var h = new ASprite();
+				var p = new Pic("knockStar");
+				h.addChild(p);
+				mc.addChild(h);
+				stars.push(h);
+				starPics.push(p);
+			}
+		}
+		for (i in 0...2) {
+			var h = stars[i];
+			h._x = s[i * 4];
+			h._y = s[i * 4 + 1];
+			h._xscale = s[i * 4 + 2] * 100;
+			h._yscale = s[i * 4 + 2] * 100;
+			h._rotation = s[i * 4 + 3];
+			h._visible = true;
+		}
+		starTimer = 0;
+		showStars();
+		// (no slide from where they were the last time)
+		for (i in 0...2) {
+			if (stars[i]._prevState != null)
+				stars[i]._prevState.copyFrom(stars[i]._curState);
+			if (starPics[i]._prevState != null)
+				starPics[i]._prevState.copyFrom(starPics[i]._curState);
+		}
+	}
+
+	function showStars() {
+		var o = (starTimer % 29) * 2;
+		var w = starTimer % 9 + 1;
+		for (i in 0...2) {
+			var orbit = i == 0 ? Art.STAR_ORBIT_A : Art.STAR_ORBIT_B;
+			var p = starPics[i];
+			p._x = orbit[o];
+			p._y = orbit[o + 1];
+			p.show(w);
+		}
 	}
 
 	// pictures of the animation set: count of frames for the code
@@ -131,6 +197,7 @@ class Animator extends Trigger {
 		var f = subFrame;
 		pic.setAnim(name);
 		setSubs();
+		setStars();
 		subFrame = Std.int(Math.min(f, subCount));
 		if (!visLoop)
 			pic.show(subFrame);
@@ -193,12 +260,21 @@ class Animator extends Trigger {
 			}
 		}
 
+		// the stars of a knocked out bad turn by themselves
+		if (starsOn) {
+			starTimer++;
+			showStars();
+		}
+
 		if (!fl_anim)
 			return;
 
-		// nested clips playing by themselves
-		if (visLoop)
-			pic.show(pic.cur % pic.count() + 1);
+		// nested clips playing by themselves (back to the picture of Art.VIS_FROM: what they play once is not
+		// played again)
+		if (visLoop) {
+			var vf = Art.VIS_FROM.get(pic.anim);
+			pic.show(pic.cur < pic.count() ? pic.cur + 1 : (vf != null ? vf : 1));
+		}
 
 		// the sub clip
 		if (frame >= 0) {

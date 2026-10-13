@@ -153,9 +153,12 @@ class Game implements kado.GameInterface {
 				KeyboardManager.RIGHT,
 				KeyboardManager.SPACE,
 				KeyboardManager.CONTROL,
-				// detailed effects, intuition (only pictures, recorded too: the replay shows them like the game)
+				// detailed effects, intuition, disguise, skin (only pictures, recorded too: the replay shows them like the
+				// game)
 				69,
 				73,
+				67,
+				86,
 				#if debug
 				// test keys N, L, K: they change the game, the replay plays them
 				78, 76, 75,
@@ -173,6 +176,7 @@ class Game implements kado.GameInterface {
 		// (the options of the browser, again: a replay may have changed them)
 		detail = loadDetail();
 		intuition = loadIntuition();
+		loadLook();
 		frameCount = 0;
 		levelsDone = 0;
 		kills = 0;
@@ -241,10 +245,14 @@ class Game implements kado.GameInterface {
 		var lv = new js.html.URLSearchParams(js.Browser.location.search).get("lvl");
 		if (lv != null)
 			first = Std.parseInt(lv);
-		// ...&kind=<name>: every level built that way (LevelCompose.SYSTEMS: trunks, decks, walls, rocks, slopes)
+		// ...&kind=<name>: every level drawn with this layout (LevelDesign.LAYOUTS: full, center, bands, three, pair) or
+		// this motif (lattice, tree, spines, arches, pillars, hooks, box, stairs, rooms, ledges, comb, stack)
 		LevelGen.forceKind = new js.html.URLSearchParams(js.Browser.location.search).get("kind");
 		// ...&feat=<gate|spikes|pit|vault|disarm|teleport|saws|nest>[,...]: every level with these features (LevelFeatures)
 		LevelFeatures.force = new js.html.URLSearchParams(js.Browser.location.search).get("feat");
+		// ...&idea=<id>: every level drawn for this idea (LevelConcept: vide, tirs, fraises, nid, cave, rives, arene,
+		// mines, bombinos, coffre, pics, litchis, abricots, framboises, combo, bondissantes)
+		LevelConcept.force = new js.html.URLSearchParams(js.Browser.location.search).get("idea");
 		#end
 		world.goto(first);
 		#if debug
@@ -398,8 +406,9 @@ class Game implements kado.GameInterface {
 	public function attachItemName(id:Int) {
 		var i = Art.SPECIAL_IDS.indexOf(id);
 		if (i >= 0)
-			fxMan.attachItemName(i);
+			fxMan.attachItemName(i, "specialItem", i + 1);
 	}
+
 
 	public function addAnim(a:Animation) {
 		anims.push(a);
@@ -441,6 +450,53 @@ class Game implements kado.GameInterface {
 	// order is lost. Kept in the browser, only pictures
 	public static var intuition:Int = loadIntuition();
 	var intuitionKey:Bool = false;
+
+	// the look of Igor, kept in the browser: his disguise (Data.HEAD_*, key C: the cone, the afro, the jester, Piou,
+	// Mario, the hood of Tuberculoz; the disguises of the original, key D there: the D of ZQSD / WASD here) and his
+	// skin (key V: Igor or Sandy, her own head first)
+	public static var head:Int = 1;
+	public static var skin:Int = 1;
+	var lookKeys:Array<Bool> = [false, false];
+	static var IGOR_HEADS = [1, 2, 3, 4, 5, 6];
+	static var SANDY_HEADS = [10, 2, 3, 4, 5, 6];
+
+	static function loadLook() {
+		skin = 1;
+		head = 1;
+		try {
+			var st = js.Browser.getLocalStorage();
+			skin = st.getItem("hammerfest.skin") == "2" ? 2 : 1;
+			var h = Std.parseInt(st.getItem("hammerfest.head"));
+			head = skin == 2 ? 10 : 1;
+			if (h != null && (skin == 2 ? SANDY_HEADS : IGOR_HEADS).indexOf(h) >= 0)
+				head = h;
+		} catch (e:Dynamic) {}
+	}
+
+	function saveLook() {
+		if (!isReplay)
+			try {
+				var st = js.Browser.getLocalStorage();
+				st.setItem("hammerfest.skin", Std.string(skin));
+				st.setItem("hammerfest.head", Std.string(head));
+			} catch (e:Dynamic) {}
+	}
+
+	// the next disguise
+	function nextHead() {
+		var list = skin == 2 ? SANDY_HEADS : IGOR_HEADS;
+		var i = list.indexOf(head);
+		head = list[(i + 1) % list.length];
+		saveLook();
+	}
+
+	// Igor or Sandy (with her own head, he with his cone; the other disguises kept)
+	function nextSkin() {
+		skin = skin == 2 ? 1 : 2;
+		if (head == 1 || head == 10)
+			head = skin == 2 ? 10 : 1;
+		saveLook();
+	}
 	var orderLost:Bool = false;
 	var hintBad:Bad = null;
 	var hintTimer:Float = 0;
@@ -599,6 +655,7 @@ class Game implements kado.GameInterface {
 	var debugN:Bool = false;
 	var debugL:Bool = false;
 	var debugK:Bool = false;
+	var debugG:Bool = false;
 	#end
 
 	static function loadDetail():Bool {
@@ -895,8 +952,10 @@ class Game implements kado.GameInterface {
 		timers = [];
 		// the fruits get faster in the well, and angry from the start deep in it
 		var depth = world.currentId;
-		speedFactor = 1.0 + Math.min(0.45, depth * 0.03);
-		var anger = depth < 10 ? 0 : (depth < 22 ? 1 : 2);
+		// (players: the big rise was felt from level 10: the bads angry from the start at level 14, faster a little
+		// slower)
+		speedFactor = 1.0 + Math.min(0.45, depth * 0.025);
+		var anger = depth < 14 ? 0 : (depth < 26 ? 1 : 2);
 		var n = 0;
 		for (b in world.current.bads) {
 			// ScriptEngine E_BAD: in the case, on its ground
@@ -1007,6 +1066,21 @@ class Game implements kado.GameInterface {
 	public function onResurrect() {
 		destroyList(Data.SUPA);
 		resetHurry();
+	}
+
+	// a bad replaced by another one (the litchi without its shell, Litchi.weaken): the new one takes its place in the
+	// order of the big crystal (players: in the original the litchi, destroyed but never killed, stayed in the order:
+	// breaking a shell lost the big crystal)
+	public function replaceInOrder(from:Bad, to:Bad) {
+		var i = perfectOrder.indexOf(from.uniqId);
+		if (i < 0)
+			return;
+		perfectOrder[i] = to.uniqId;
+		if (orderNum.exists(from.uniqId)) {
+			orderNum.set(to.uniqId, orderNum.get(from.uniqId));
+			orderNum.remove(from.uniqId);
+		}
+		showOrderHint();
 	}
 
 	public function onKillBad(b:Bad) {
@@ -1163,6 +1237,14 @@ class Game implements kado.GameInterface {
 		if (ik && !intuitionKey)
 			toggleIntuition();
 		intuitionKey = ik;
+		var ck = KeyboardManager.isDown(67);
+		if (ck && !lookKeys[0])
+			nextHead();
+		lookKeys[0] = ck;
+		var vk = KeyboardManager.isDown(86);
+		if (vk && !lookKeys[1])
+			nextSkin();
+		lookKeys[1] = vk;
 		updateOrderHint();
 
 		#if debug
@@ -1185,14 +1267,22 @@ class Game implements kado.GameInterface {
 			goto(world.currentId + 5);
 		}
 		debugL = lk;
+		// K: the fruits killed (forceKill: the litchis in their shell too, their killHit only knocks them out)
 		var kd = KeyboardManager.isDown(75);
 		if (kd && !debugK && !fl_lock && !fl_gameOver)
 			for (e in getList(Data.BAD_CLEAR).copy()) {
 				var bad:Bad = cast e;
 				if (!bad.fl_kill)
-					bad.killHit(bad.x < Data.GAME_WIDTH / 2 ? -6 : 6);
+					bad.forceKill(bad.x < Data.GAME_WIDTH / 2 ? -6 : 6);
 			}
 		debugK = kd;
+		// G: a life more
+		var gk = KeyboardManager.isDown(71);
+		if (gk && !debugG && !fl_lock && !fl_gameOver && player != null && !player.fl_kill) {
+			player.lives++;
+			gi.setLives(player.lives);
+		}
+		debugG = gk;
 		#end
 
 		if (pendingLevel != null) {
