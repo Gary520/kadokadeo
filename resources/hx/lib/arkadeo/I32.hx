@@ -6,8 +6,9 @@ package arkadeo;
  * the double).
  */
 class I32 {
+	// (the outer parentheses matter: Haxe pastes the code as is, `x | 0 & m` or `x | 0 + n` would bind to the 0)
 	public static inline function of(v:Float):Int {
-		return js.Syntax.code("({0}) | 0", v);
+		return js.Syntax.code("(({0}) | 0)", v);
 	}
 
 	// int(a * b) of AS3 (doubles, then the conversion)
