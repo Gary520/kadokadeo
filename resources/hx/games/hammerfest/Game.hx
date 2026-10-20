@@ -245,14 +245,9 @@ class Game implements kado.GameInterface {
 		var lv = new js.html.URLSearchParams(js.Browser.location.search).get("lvl");
 		if (lv != null)
 			first = Std.parseInt(lv);
-		// ...&kind=<name>: every level drawn with this layout (LevelDesign.LAYOUTS: full, center, bands, three, pair) or
-		// this motif (lattice, tree, spines, arches, pillars, hooks, box, stairs, rooms, ledges, comb, stack)
-		LevelGen.forceKind = new js.html.URLSearchParams(js.Browser.location.search).get("kind");
-		// ...&feat=<gate|spikes|pit|vault|disarm|teleport|saws|nest>[,...]: every level with these features (LevelFeatures)
-		LevelFeatures.force = new js.html.URLSearchParams(js.Browser.location.search).get("feat");
-		// ...&idea=<id>: every level drawn for this idea (LevelConcept: vide, tirs, fraises, nid, cave, rives, arene,
-		// mines, bombinos, coffre, pics, litchis, abricots, framboises, combo, bondissantes)
-		LevelConcept.force = new js.html.URLSearchParams(js.Browser.location.search).get("idea");
+		// ...&kind=<name>: every level built this way (GenShapes: etages, briques, coupes, colonnes, escaliers, iles,
+		// pyramide, serpentin, salles, labyrinthe)
+		Gen.forceShape = new js.html.URLSearchParams(js.Browser.location.search).get("kind");
 		#end
 		world.goto(first);
 		#if debug

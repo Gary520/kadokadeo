@@ -32,21 +32,21 @@ typedef LeverData = {
 // gives the same well, the replays the same levels).
 class Levels {
 	public static function reset() {
-		LevelGen.reset();
+		Gen.reset();
 	}
 
 	public static function get(depth:Int):LevelData {
-		var l = LevelGen.make(depth);
+		var l = Gen.make(depth);
 		#if debug
-		// (test harness: the bombs from above on each strawberry of the level, LevelGen.bombExposure)
+		// (test harness: the way of building of each level and the devices put, with why)
 		var w:Dynamic = js.Browser.window;
-		if (w.__hfStraw == null)
-			w.__hfStraw = {};
-		Reflect.setField(w.__hfStraw, "" + depth, LevelGen.lastStraw);
-		// (the way of drawing of each level and its variant)
 		if (w.__hfKind == null)
 			w.__hfKind = {};
-		Reflect.setField(w.__hfKind, "" + depth, LevelGen.lastKind);
+		Reflect.setField(w.__hfKind, "" + depth, Gen.lastKind + (Gen.lastNotes.length > 0 ? " | " + Gen.lastNotes.join(", ") : ""));
+		// (the pairs of teleporters the generator meant: the top case of each one)
+		if (w.__hfTeles == null)
+			w.__hfTeles = {};
+		Reflect.setField(w.__hfTeles, "" + depth, [for (p in Gen.lastGrid.teles) [for (f in p) f.cells[0]]]);
 		#end
 		// walls: a ground under another ground (GameMechanics.parseWalls)
 		var m = l.map;
